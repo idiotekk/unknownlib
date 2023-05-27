@@ -2,16 +2,29 @@ import os
 import sys
 import pandas as pd
 from glob import glob
-from multiprocess import Pool
+from pathlib import Path
+from typing import Union, Sequence
 from . import log
 
 
-def read_df(file):
-    
-    pass
+def save_df(df: pd.DataFrame,
+            file: Union[str, Path],
+            **kw) -> str:
+    """ Write dataframe to csv, creating parent dir if not exists.
+    """
+    file = Path(os.path.expandvars(str(file)))
+    parent_dir = file.parent
+    if not parent_dir.exists():
+        log.info(f"creating {parent_dir}")
+        parent_dir.mkdir(parents=True, exist_ok=True)
+    df.to_csv(file, **kw)
+    log.info(f"df shape: {df.shape}, written to: {file}")
+    return file
 
 
-def _repr_seq(s, head=1, tail=1):
+def _repr_seq(s: Sequence, head: int=1, tail: int=1) -> str:
+    """ A short repr of a sequence
+    """
     if len(s) <= head + tail:
         r = str(s)
     else:
@@ -36,16 +49,19 @@ def collect_df(p: str, cores=1, filepath=False, **kw) -> pd.DataFrame:
     log.info(f"files found: {_repr_seq(files)}")
 
     def _reader(f):
-        return pd.read_csv(f, **kw)
+        df_ = pd.read_csv(f, **kw)
+        if filepath is True:
+            df_["filepath"] = f
+        log.info(f"{f} shape={df_.shape}")
+        return df_
 
     if cores > 1:
+        from multiprocess import Pool
         pool = Pool(cores)
         df_list = pool.map(_reader, files)
         pool.close()
     else:
         df_list = [_reader(f) for f in files]
 
-    if filepath:
-        [df.assign(filepath=f) for df, f in zip(df_list, files)]
     df = pd.concat(df_list)
     return df
