@@ -1,0 +1,92 @@
+import pandas as pd
+from typing import Union, List, Optional, Tuple
+from bokeh.io import output_notebook
+from bokeh.resources import INLINE
+from bokeh.plotting import figure, gridplot
+from bokeh.plotting import show as _show
+
+output_notebook(INLINE)
+
+
+def _colors(n):
+    default_colors = ["black", "red", "green", "blue", "cyan", "magenta"]
+    assert n <= len(default_colors)
+    return default_colors[:n]
+
+
+def plot(df: pd.DataFrame,
+         *,
+         x: str,
+         y: Union[str, List[str]],
+         hue: Optional[str]=None,
+         hlines: List[float]=[],
+         line_types: str="line",
+         figsize: Tuple[float]=(800, 500),
+         show: bool=True,
+         ):
+
+    if isinstance(y, list):
+        assert hue is None
+        df = pd.melt(df,
+                     id_vars=x,
+                     value_vars=y,
+                     var_name=" variable",
+                     value_name=" vallue",
+                     )
+        y = " value"
+        hue = " variable"
+    else:
+        df = df.copy()
+    
+    if hue is None:
+        df["dummy"] = y
+        hue = "dummy"
+
+    unique_hues = df[hue].unique()
+    palette = _colors(len(unique_hues))
+
+    w, h = figsize
+    p = figure(title=None,
+               tools="pan,reset,wheel_zoom,xwheel_zoom,ywheel_zoom",
+               width=w,
+               height=h)
+    p.toolbar.active_scroll = None
+
+    for color, hue_ in zip(palette, unique_hues):
+
+        df_hue = df[df[hue] == hue_].copy()
+        line_types = line_types.split(",")
+        for line_type in line_types:
+            line_func = getattr(p, line_type)
+            line_func(df_hue[x], df_hue[y], color=color)
+    
+    for hl in hlines:
+        p.line(df_hue[x], hl, color="black", line_dash="dashed")
+
+    if show is True:
+        _show(p)
+
+    return p
+
+    
+def tsplot(df,
+           *,
+           time_var,
+           y: Union[str, List[str]],
+           hue: Optional[str]=None,
+           show: bool=True,
+           **kw,
+           ):
+
+    p = plot(df,
+                x=time_var,
+                y=y,
+                hue=hue,
+                show=False,
+                **kw)
+
+    from bokeh.models import DatetimeTickFormatter
+    p.xaxis.formatter = DatetimeTickFormatter(years="%Y", months="%Y%m", days="%Y%m%d")
+    if show is True:
+        _show(p)
+    return p
