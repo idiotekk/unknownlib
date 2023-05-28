@@ -52,13 +52,14 @@ def plot(df: pd.DataFrame,
                height=h)
     p.toolbar.active_scroll = None
 
+    line_types = line_types.split(",")
     for color, hue_ in zip(palette, unique_hues):
 
+        legend_label = hue_
         df_hue = df[df[hue] == hue_].copy()
-        line_types = line_types.split(",")
         for line_type in line_types:
             line_func = getattr(p, line_type)
-            line_func(df_hue[x], df_hue[y], color=color)
+            line_func(df_hue[x], df_hue[y], color=color, legend_label=legend_label)
     
     for hl in hlines:
         p.line(df_hue[x], hl, color="black", line_dash="dashed")
