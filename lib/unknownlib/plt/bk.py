@@ -4,6 +4,7 @@ from bokeh.io import output_notebook
 from bokeh.resources import INLINE
 from bokeh.plotting import figure, gridplot
 from bokeh.plotting import show as _show
+from pandas.api.types import is_string_dtype
 
 output_notebook(INLINE)
 
@@ -20,8 +21,10 @@ def plot(df: pd.DataFrame,
          y: Union[str, List[str]],
          hue: Optional[str]=None,
          hlines: List[float]=[],
+         vlines: List[float]=[],
          line_types: str="line",
          figsize: Tuple[float]=(800, 500),
+         title: Optional[str]=None,
          show: bool=True,
          ):
 
@@ -31,7 +34,7 @@ def plot(df: pd.DataFrame,
                      id_vars=x,
                      value_vars=y,
                      var_name=" variable",
-                     value_name=" vallue",
+                     value_name=" value",
                      )
         y = " value"
         hue = " variable"
@@ -42,11 +45,16 @@ def plot(df: pd.DataFrame,
         df["dummy"] = y
         hue = "dummy"
 
+    if not is_string_dtype(df[hue]):
+        df[hue] = df[hue].astype(str)
+
     unique_hues = df[hue].unique()
     palette = _colors(len(unique_hues))
 
     w, h = figsize
-    p = figure(title=None,
+    if title is None:
+        title = y
+    p = figure(title=title,
                tools="pan,reset,wheel_zoom,xwheel_zoom,ywheel_zoom",
                width=w,
                height=h)
@@ -63,6 +71,9 @@ def plot(df: pd.DataFrame,
     
     for hl in hlines:
         p.line(df_hue[x], hl, color="black", line_dash="dashed")
+
+    for vl in vlines:
+        p.line(df_hue[vl], hl, color="black", line_dash="dashed")
 
     if show is True:
         _show(p)
