@@ -2,7 +2,7 @@ import pandas as pd
 from typing import Optional, Union, List, Callable, Dict, Sequence
 
 
-def agg_df(df,
+def agg_df(df: pd.DataFrame,
            *,
            by: Union[str, List[str]],
            func: Callable,

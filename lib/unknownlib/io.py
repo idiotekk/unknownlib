@@ -23,14 +23,14 @@ def save_df(df: pd.DataFrame,
 
 
 def _repr_seq(s: Sequence, head: int=1, tail: int=1) -> str:
-    """ A short repr of a sequence
+    """ A short repr of a sequence.
     """
+    _repr = lambda s: "[" + ", ".join([str(_) for _ in s]) + "]"
     if len(s) <= head + tail:
-        r = str(s)
+        r = _repr(s)
     else:
         s_ = list(s[:head]) + ["..."] + list(s[(-tail):])
-        r = str(s_)
-    r += f", {len(s)} in total"
+        r = _repr(s_) + f", {len(s)} in total"
     return r
 
 
