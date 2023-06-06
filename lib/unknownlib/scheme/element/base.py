@@ -11,10 +11,12 @@ __all__ = [
 
 class Element:
     
+    _name: str = None
     _manager = None
     _params: dict = None
 
-    def __init__(self, params: dict) -> None:
+    def __init__(self, name: str, params: dict) -> None:
+        self._name = name
         self._params = params
 
     def set_manager(self, manager):
@@ -33,22 +35,22 @@ class Element:
         raise NotImplementedError(f"`calc` is not implemented for {self.__class__}")
     
     def done(self):
-        log.info(f"{self.__class__} done.")
+        log.info(f"{self._name} done.")
 
 
 class ElementCatalog:
 
-    _catalog = {
-        
-    }
+    _catalog: dict = {}
 
     @classmethod
     def register_element_type(cls, type_name: str, type_: type):
         assert type_name not in cls._catalog, "type {type_name} is already registered!"
+        log.info(f"registered: name = {type_name}, type = {type_}")
         cls._catalog[type_name] = type_
 
     @classmethod
     def get_element_type(cls, type_name: str):
+        assert type_name in cls._catalog, f"{type_name} is not found in {list(cls._catalog.keys())}"
         return cls._catalog[type_name]
     
 
@@ -60,7 +62,7 @@ class ElementManager:
         assert name not in self._elements, f"{name} is already created!"
         type_name = params["type"]
         type_ = ElementCatalog.get_element_type(type_name)
-        e = type_(params)
+        e = type_(name, params)
         e.set_manager(self)
         self._elements[name] = e
 
