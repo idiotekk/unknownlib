@@ -28,11 +28,27 @@ def cross_join(**kw: Dict[str, Sequence]) -> pd.DataFrame:
     return res.drop("__key", axis=1)
    
     
-@pd.api.extensions.register_dataframe_accessor("un")
+@pd.api.extensions.register_dataframe_accessor("uk")
 class UnknownDataFrame:
+
     def __init__(self, pandas_obj):
         self._validate(pandas_obj)
         self._obj = pandas_obj
+    
+    @staticmethod
+    def _validate(obj):
+        assert isinstance(obj, pd.DataFrame)
 
     def agg(self, *, by: Union[str, List[str]], func: Callable):
+        """
+        Group by `by` and apply `func`.
+
+        Examples
+        --------
+        >>> df.uk.agg(by="date", func=lambda x: {"n": len(x)})
+        """
         return agg_df(self._obj, by=by, func=func)
+
+    def save(self, *a, **kw):
+        from .io import save_df
+        save_df(self._obj, *a, **kw)

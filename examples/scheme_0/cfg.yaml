@@ -1,0 +1,10 @@
+{
+  "dumb_scheduler": {
+    "type": "scheduler",
+    "start": 0,
+    "end": 10
+  },
+  "booboobook": {
+    "type": "boobook",
+  }
+}
