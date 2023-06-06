@@ -26,7 +26,7 @@ class Element:
         self._params = params
 
     def get_element(self, name: str):
-        return self._manager.get_element(name)
+        return self._manager.get_element_by_name(name)
 
     def init(self):
         raise NotImplementedError(f"`init` is not implemented for {self.__class__}")
@@ -36,6 +36,9 @@ class Element:
     
     def done(self):
         log.info(f"{self._name} done.")
+
+    def field(self, s):
+        raise NotImplementedError(s)
 
 
 class ElementCatalog:
