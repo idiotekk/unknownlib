@@ -1,6 +1,6 @@
 {
   "dumb_scheduler": {
-    "type": "scheduler",
+    "type": "simple_scheduler",
     "start": 0,
     "end": 10
   },

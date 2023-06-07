@@ -7,7 +7,8 @@ from .serializer import *
 
 
 for _name, _type in {
-    "scheduler": Scheduler,
+    "simple_scheduler": SimpleScheduler,
+    "freq_scheduler": FreqScheduler,
     "boobook": Boobook,
     "logger": Logger,
     "serializer": Serializer

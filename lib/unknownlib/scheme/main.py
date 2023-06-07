@@ -22,7 +22,7 @@ def main():
     manager.init_elements()
         
     scheduler = manager.get_element_by_type(Scheduler)
-    for time_ in scheduler.schedule_calc_times():
+    for time_ in scheduler.schedule():
         manager.calc_elements(time_)
 
     manager.done_elements()

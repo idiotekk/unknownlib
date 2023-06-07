@@ -1,0 +1,10 @@
+{
+  "dumb_scheduler": {
+    "type": "freq_scheduler",
+    "is_live": true,
+    "freq": "5s",
+  },
+  "booboobook": {
+    "type": "boobook",
+  },
+}

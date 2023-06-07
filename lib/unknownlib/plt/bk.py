@@ -26,6 +26,7 @@ def plot(df: pd.DataFrame,
          figsize: Tuple[float]=(800, 500),
          title: Optional[str]=None,
          show: bool=True,
+         tools: str="pan,reset,wheel_zoom,box_zoom",
          ):
 
     if isinstance(y, list):
@@ -55,7 +56,7 @@ def plot(df: pd.DataFrame,
     if title is None:
         title = y
     p = figure(title=title,
-               tools="pan,reset,wheel_zoom,xwheel_zoom,ywheel_zoom",
+               tools=tools,
                width=w,
                height=h)
     p.toolbar.active_scroll = None
@@ -91,14 +92,16 @@ def tsplot(df,
            ):
 
     p = plot(df,
-                x=time_var,
-                y=y,
-                hue=hue,
-                show=False,
-                **kw)
+             x=time_var,
+             y=y,
+             hue=hue,
+             show=False,
+             **kw)
 
     from bokeh.models import DatetimeTickFormatter
-    p.xaxis.formatter = DatetimeTickFormatter(years="%Y", months="%Y%m", days="%Y%m%d")
+    p.xaxis.formatter = DatetimeTickFormatter(
+        years="%Y", months="%Y%m", days="%Y%m%d",
+        hours="%Y%m%d %Hh", minutes="%Y%m%d-%H:%M")
     if show is True:
         _show(p)
     return p
