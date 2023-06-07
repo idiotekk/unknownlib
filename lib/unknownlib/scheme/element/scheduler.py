@@ -42,7 +42,7 @@ class FreqScheduler(Scheduler):
 
     _freq: pd.Timedelta
     _is_live: bool
-    _now: pd.Timestamp
+    _cur_time: pd.Timestamp
     _start: pd.Timestamp
     _end: pd.Timestamp
 
