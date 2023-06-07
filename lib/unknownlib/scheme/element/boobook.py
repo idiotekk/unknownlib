@@ -1,5 +1,6 @@
 from .base import Element
 from . import log
+from typing import Any
 
 __all__ = [
     "Boobook"
@@ -14,7 +15,7 @@ class Boobook(Element):
     def calc(self, time: int):
         log.info(f"Boobook {time} Boobook")
         
-    def field(self, s):
+    def field(self, s) -> Any:
         if s == "name":
             return "kk"
         else:

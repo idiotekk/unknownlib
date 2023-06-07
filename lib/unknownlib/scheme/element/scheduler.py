@@ -23,7 +23,6 @@ class Scheduler(Element):
         raise NotImplementedError()
 
 
-
 class SimpleScheduler(Scheduler):
 
     def init(self):
@@ -32,7 +31,7 @@ class SimpleScheduler(Scheduler):
             self._params["end"],
         )
 
-    def schedule(self):
+    def schedule(self) -> int:
         for time_ in self._calc_times:
             log.info(f"scheduling calc time {time_}")
             yield time_

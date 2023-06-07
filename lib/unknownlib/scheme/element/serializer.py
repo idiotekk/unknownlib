@@ -1,6 +1,6 @@
 from .base import Element
 from ...io import save_df
-from typing import Dict
+from typing import Dict, Union
 import pandas as pd
 
 
@@ -31,6 +31,6 @@ class Serializer(Element):
             index=False,
         )
 
-    def snap_var(self, var):
+    def snap_var(self, var) -> Union[str, float, int]:
         elem_name, field = var.split(".")
         return self.get_element(elem_name).field(field)

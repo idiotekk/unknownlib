@@ -7,4 +7,8 @@
   "booboobook": {
     "type": "boobook",
   },
+  "flogger": {
+    "type": "logger",
+    "filename": "/tmp/test.log"
+  }
 }
