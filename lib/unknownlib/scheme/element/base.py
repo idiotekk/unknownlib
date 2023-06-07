@@ -25,8 +25,11 @@ class Element:
     def set_params(self, params):
         self._params = params
 
-    def get_element(self, name: str):
+    def get_element_by_name(self, name: str):
         return self._manager.get_element_by_name(name)
+
+    def get_element_by_type(self, type_: type):
+        return self._manager.get_element_by_type(type_)
 
     def init(self):
         raise NotImplementedError(f"`init` is not implemented for {self.__class__}")

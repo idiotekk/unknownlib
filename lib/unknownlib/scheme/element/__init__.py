@@ -4,6 +4,8 @@ from .logger import *
 from .scheduler import *
 from .boobook import *
 from .serializer import *
+from .executor import *
+from .optimizer import *
 
 
 for _name, _type in {

@@ -33,4 +33,4 @@ class Serializer(Element):
 
     def snap_var(self, var) -> Union[str, float, int]:
         elem_name, field = var.split(".")
-        return self.get_element(elem_name).field(field)
+        return self.get_element_by_name(elem_name).field(field)
