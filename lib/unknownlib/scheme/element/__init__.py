@@ -6,13 +6,3 @@ from .boobook import *
 from .serializer import *
 from .executor import *
 from .optimizer import *
-
-
-for _name, _type in {
-    "simple_scheduler": SimpleScheduler,
-    "freq_scheduler": FreqScheduler,
-    "boobook": Boobook,
-    "logger": Logger,
-    "serializer": Serializer
-}.items():
-    ElementCatalog.register_element_type(_name, _type)

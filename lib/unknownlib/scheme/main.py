@@ -3,12 +3,15 @@ from . import log
 from argparse import ArgumentParser
 import yaml
 
+
 parser = ArgumentParser()
 parser.add_argument("cfg_file")
 
 
 def main():
-    
+
+    ElementCatalog.register_all_element_types()
+
     args = parser.parse_args()
     cfg_file = args.cfg_file
     log.info(f"parsing {cfg_file}")

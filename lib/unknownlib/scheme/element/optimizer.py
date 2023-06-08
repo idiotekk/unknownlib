@@ -9,5 +9,5 @@ class Optimizer(Element):
     def calc(self, time):
         pass
 
-    def get_order(self) -> Tuple(bool, float):
+    def get_order(self) -> Tuple[bool, float]:
         pass
