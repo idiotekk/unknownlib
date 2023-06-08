@@ -1,5 +1,5 @@
-from . import log
-from .. import default_formatter
+from ..logging import log
+from ..logging import default_formatter
 import logging
 from .base import Element
 from pathlib import Path

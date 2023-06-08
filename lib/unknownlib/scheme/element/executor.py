@@ -1,4 +1,4 @@
-from . import log
+from ..logging import log
 import os
 from .base import Element
 from .optimizer import Optimizer

@@ -1,4 +1,4 @@
-from . import log
+from ..logging import log
 import re
 from typing import Optional, Dict, Any, Self, Union
 

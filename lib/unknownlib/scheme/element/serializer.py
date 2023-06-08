@@ -1,3 +1,4 @@
+from ..logging import log
 from .base import Element
 from ...io import save_df
 from typing import Dict, Union

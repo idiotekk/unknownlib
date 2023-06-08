@@ -1,5 +1,4 @@
 from .element import *
-from . import log
 from argparse import ArgumentParser
 import yaml
 

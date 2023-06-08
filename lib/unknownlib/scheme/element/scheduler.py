@@ -1,5 +1,5 @@
 from .base import Element
-from . import log
+from ..logging import log
 import pandas as pd
 import time
 

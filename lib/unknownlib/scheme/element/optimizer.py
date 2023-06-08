@@ -1,4 +1,4 @@
-from . import log
+from ..logging import log
 from .base import Element
 from typing import Tuple
 
