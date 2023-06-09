@@ -153,3 +153,11 @@ class ElementManager:
         """
         for _, e in self.iter_elements():
             e.done()
+
+
+class ElementParams:
+
+    _params: Dict[str, Any] = {}
+
+    def __init__(self, params: Dict[str, Any]) -> None:
+        self._params = params
