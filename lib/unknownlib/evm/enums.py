@@ -16,6 +16,9 @@ class Chain(Enum):
     AVALANCHE = 43114
     ARBITRUM = 42170
     SEPOLIA = 11155111
+
+    def __eq__(self, __value: object) -> bool:
+        return hash(self) == hash(__value)
     
     def __hash__(self) -> int:
         return super().__hash__()

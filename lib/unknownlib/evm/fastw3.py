@@ -265,7 +265,7 @@ class FastW3:
     def connect_to_web3_provider(provider: str, chain: Chain) -> Web3:
 
         if provider == "infura":
-            url_base = {
+            url_base_map = {
                 Chain.ETHEREUM: "https://mainnet.infura.io/v3",
                 Chain.GOERLI: "https://goerli.infura.io/v3",
                 Chain.SEPOLIA: "https://serpolia.infura.io/v3",
@@ -273,7 +273,9 @@ class FastW3:
                 Chain.ARBITRUM: "https://arbitrum-mainnet.infura.io/v3",
                 Chain.OPTIMISM: "https://optimism-mainnet.infura.io/v3",
                 Chain.POLYGON: "https://polygon-mainnet.infura.io/v3",
-            }[chain]
+            }
+
+            url_base = url_base_map[chain]
             api_key = os.environ["INFURA_API_KEY"]
             url = f"{url_base}/{api_key}"
             log.info(f"connecting to: {url}")
