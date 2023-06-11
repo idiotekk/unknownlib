@@ -128,12 +128,13 @@ class FastW3:
             self._web3.eth.get_block(block_number).timestamp * 1e9,
             utc=True).tz_convert(tz)
 
-    def get_contract(self,
-                     addr: str,
-                     abi: Optional[list]=None,
-                     impl_addr: Optional[str]=None,
-                     label: str=None,
-                     ) -> Contract:
+    def init_contract(self,
+                      *,
+                      addr: str,
+                      abi: Optional[list]=None,
+                      impl_addr: Optional[str]=None,
+                      label: str,
+                      ) -> Contract:
         """
         Create a Contract from addr.
         
@@ -154,21 +155,20 @@ class FastW3:
             log.info(f"addr: {addr}\nimpl addr: {impl_addr}")
             abi = self.get_abi(impl_addr, from_cache=True, chain=self._chain)
         contract = self._web3.eth.contract(address=addr, abi=abi)
-        self._contracts[addr] = contract
-        if label is not None:
-            if label in self._contracts:
-                log.warning(f"contract label {label} is already used; will override")
-            self._contracts[label] = contract
-            log.info(f"contract cached as '{label}'")
-        return contract
-        
+        self.add_contract(contract, label=label)
+
+    def add_contract(self, c: Contract, *, label: str):
+        if label in self._contracts:
+            log.warning(f"contract label {label} is already used; will override")
+        self._contracts[label] = c
+        log.info(f"contract cached as '{label}'")
+
     def call(self,
              func: ContractFunction,
              *,
              value: float=0, # value in *ETH*
              gas: float, # gas, unit = gwei
-             gas_price: Optional[int] = None, # gas price in wei
-             **kw: dict, # other transaction args than from, nounce, value, gas, gasPrice
+             **kw: dict, # other transaction args than from, nounce, value, gas
              ) -> TxReceipt:
         """ Execute a transaction.
         """
@@ -177,7 +177,6 @@ class FastW3:
             "nonce": self._web3.eth.get_transaction_count(self._acct.address),
             "value": self._web3.to_wei(value, "ether"), # not that this won't count as an API call
             "gas": int(gas),
-            "gasPrice": gas_price or self.eth.gas_price,
             **kw,
         })
         return self._sign_and_send(tx)
@@ -198,7 +197,6 @@ class FastW3:
                    value: float,
                    unit: str="ether",
                    gas: float,
-                   gas_price: Optional[int] = None, # gas price in wei
                    ) -> TxReceipt:
 
         log.info(f"sending {value} {unit} to {to}")
@@ -209,7 +207,6 @@ class FastW3:
             "to": to,
             "value": self._web3.to_wei(value, unit),
             "gas": int(gas),
-            "gasPrice": gas_price or self.eth.gas_price,
         }
         return self._sign_and_send(tx)
 
@@ -290,6 +287,7 @@ class FastW3:
                        from_block: int,
                        to_block: int,
                        topics: List[str]=[],
+                       process: bool=True,
                        ) -> List[AttributeDict]:
         """ Get event logs of a contract for block within range [from_block, to_block].
 
@@ -321,4 +319,9 @@ class FastW3:
         log.info(f"filtering logs {filter_params} for event {event_name}. (number of blocks: {to_block - from_block})")
         raw_logs = self.eth.get_logs(filter_params)
         log.info(f"number of logs = {len(raw_logs)}")
-        return raw_logs
+
+        if process:
+            processed_log = [dict(c.events[event_name]().process_log(raw_log)) for raw_log in raw_logs]
+            return processed_log
+        else:
+            return raw_logs
