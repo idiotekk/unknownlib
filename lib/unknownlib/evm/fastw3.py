@@ -8,6 +8,7 @@ from web3 import Web3
 # for type hints
 from web3.contract import Contract
 from web3.contract.contract import ContractFunction
+from web3.datastructures import AttributeDict
 from web3.types import TxReceipt
 from web3.eth.eth import Eth
 from eth_account import Account
@@ -97,6 +98,8 @@ class FastW3:
     def contract(self, label: str) -> Contract:
         """ Fetch contract by label.
         """
+        if label not in self._contracts:
+            raise ValueError(f"{label} is not found; existing contracts: {list(self._contracts.keys())}")
         return self._contracts[label]
 
     def get_block_number(self,
@@ -137,6 +140,8 @@ class FastW3:
         ----------
         impl_addr : str | None
             Must set if `addr` is a proxy, otherwise ABI is not right.
+        label : str
+            If set, the contract will be cached in self._contracts
         """
         if addr in self._contracts:
             log.info(f"fetching contract from cache")
@@ -149,8 +154,10 @@ class FastW3:
         contract = self._web3.eth.contract(address=addr, abi=abi)
         self._contracts[addr] = contract
         if label is not None:
-            log.info(f"contract cached as '{label}'")
+            if label in self._contracts:
+                log.warning(f"contract label {label} is already used; will override")
             self._contracts[label] = contract
+            log.info(f"contract cached as '{label}'")
         return contract
         
     def call(self,
@@ -163,11 +170,10 @@ class FastW3:
              ) -> TxReceipt:
         """ Execute a transaction.
         """
-        nonce = self._web3.eth.get_transaction_count(self._acct.address)
         tx = func.build_transaction({
             "from": self._acct.address,
-            "nonce": nonce,
-            "value": self._web3.to_wei(value, "ether"),
+            "nonce": self._web3.eth.get_transaction_count(self._acct.address),
+            "value": self._web3.to_wei(value, "ether"), # not that this won't count as an API call
             "gas": int(gas),
             "gasPrice": self._web3.to_wei(gas_price, "gwei"),
             **kw,
@@ -273,3 +279,43 @@ class FastW3:
         response = requests.get(url)
         response_json = response.json()
         return response_json
+
+    def get_event_logs(self,
+                       *,
+                       contract: str,
+                       event_name: str,
+                       from_block: int,
+                       to_block: int,
+                       topics: List[str]=[],
+                       ) -> List[AttributeDict]:
+        """ Get event logs of a contract for block within range [from_block, to_block].
+
+        Parameters
+        ----------
+        contract : str
+            Label of the contract.
+        topics : [str]
+            *Extra* topics for the filter, in addition to the first topic which
+            always identifies the event itself.
+        """
+
+        def get_event_topic(contract: Contract, event_name: str) -> str:
+            func = contract.events[event_name]()
+            topics = func._get_event_filter_params(func.abi)["topics"]
+            assert len(topics) == 1, f"expect 1 topic; got {topics}"
+            return topics[0]
+
+        c = self.contract(contract)
+        event_topic = get_event_topic(c, event_name)
+        topics = [event_topic] + topics
+
+        filter_params = {
+            "fromBlock": from_block,
+            "toBlock": to_block,
+            "address": c.address,
+            "topics": topics,
+        }
+        log.info(f"filtering logs {filter_params} for event {event_name}. (number of blocks: {to_block - from_block})")
+        raw_logs = self.eth.get_logs(filter_params)
+        log.info(f"number of logs = {len(raw_logs)}")
+        return raw_logs
