@@ -4,7 +4,12 @@ import requests
 import web3
 import pandas as pd
 
+from web3 import Web3
+
+# for type hints
 from web3.contract import Contract
+from web3.types import TxReceipt
+from web3.eth.eth import Eth
 from eth_account import Account
 from ens import ENS
 from typing import Optional, Dict, List, Any
@@ -17,7 +22,7 @@ class FastW3:
     """ A class that combines web3, ens and account.
     """
 
-    _web3: web3.Web3
+    _web3: Web3
     _ens: ENS
     _acct: Account
     _contracts: Dict[str, Contract] = {}
@@ -41,36 +46,34 @@ class FastW3:
                   http_url: Optional[str]=None,
                   provider: Optional[str]=None,
                   chain: Optional[Chain]=None
-                  ):
+                  ) -> Web3:
         from web3 import Web3
         if ipc_path is not None:
-            self._web3 = Web3(Web3.IPCProvider(ipc_path))
+            _web3 = Web3(Web3.IPCProvider(ipc_path))
         elif http_url is not None:
-            self._web3 = Web3(Web3.HTTProvider(http_url))
+            _web3 = Web3(Web3.HTTProvider(http_url))
         elif provider is not None and chain is not None:
-            self._web3 = connect_to_web3_provider(provider=provider, chain=chain)
+            _web3 = self.connect_to_web3_provider(provider=provider, chain=chain)
         else:
             raise ValueError("set ipc_path, http_url or (provider, chain)")
-        assert self._web3.is_connected(), "Web3 is not connected"
+        assert _web3.is_connected(), "Web3 is not connected"
+        return _web3
 
     def init_acct(self,
                   *,
-                  priv_key: str):
-        self._acct = Account.from_key(priv_key)
+                  private_key: str):
+        self._acct = Account.from_key(private_key)
+        log.info(f"initialized account address: {self._acct.address}")
     
-    def init_ens(self,
-                 *,
-                 ipc_path: Optional[str]=None,
-                 http_url: Optional[str]=None,
-                 ):
-        if ipc_path is not None or http_url is not None:
-            _web3 = self._connect_to_web3(ipc_path=ipc_path, http_url=http_url)
+    def init_ens(self, **kw):
+        if kw:
+            _web3 = self._connect_to_web3(**kw)
         else:
             _web3 = self._web3
         self._ens = ENS.from_web3(_web3)
     
     @property
-    def web3(self) -> web3.Web3:
+    def web3(self) -> Web3:
         return self._web3
     
     @property
@@ -81,6 +84,10 @@ class FastW3:
     def ens(self) -> ENS:
         return self._ens
     
+    @property
+    def eth(self) -> Eth:
+        return self._web3.eth
+
     def contract(self, label: str) -> Contract:
         """ Fetch contract by label.
         """
@@ -97,7 +104,7 @@ class FastW3:
             s = (timestamp.value / 1e9) # seconds since epoch
             chain_name = chain.name
             url = f"https://coins.llama.fi/block/{chain_name}/{s}"
-            height = get_json_from_url(url)["height"]
+            height = self.get_json_from_url(url)["height"]
             dt = pd.to_datetime(s * 1e9, utc=True)
             log.info(f"{chain} height = {height} as of {dt}")
             return height
@@ -150,7 +157,7 @@ class FastW3:
                        gas: int, # gas, unit = gwei
                        gas_price: int, # gas price in *gwei*
                        tx_args: dict={}, # other transaction args than from, nounce, value, gas, gasPrice
-                       ) -> web3.types.TxReceipt:
+                       ) -> TxReceipt:
         """ Execute a transaction.
         """
         call_func = contract.functions[func](*func_args)
@@ -165,7 +172,7 @@ class FastW3:
         })
         return self._sign_and_send(tx)
     
-    def _sign_and_send(self, tx: Dict[str, Any]) -> web3.types.TxReceipt:
+    def _sign_and_send(self, tx: Dict[str, Any]) -> TxReceipt:
         """ Sign, send and transaction and obtain receipt.
         """
         log.info(f"signing transaction...")
@@ -191,7 +198,7 @@ class FastW3:
                    value: float, # value in *ETH*
                    gas: float,
                    gas_price: float,
-                   ) -> web3.types.TxReceipt:
+                   ) -> TxReceipt:
 
         nonce = self._web3.eth.get_transaction_count(self._acct.address)
         to = self._web3.to_checksum_address(to)
@@ -235,7 +242,7 @@ class FastW3:
 
 
         abi_url = f"{abi_endpoint}{contract_addr}"
-        abi_json = json.loads(get_json_from_url(abi_url)["result"])
+        abi_json = json.loads(FastW3.get_json_from_url(abi_url)["result"])
 
         with open(cache_file, "w") as f:
             json.dump(abi_json, f)
@@ -244,7 +251,7 @@ class FastW3:
 
 
     @staticmethod
-    def connect_to_web3_provider(provider: str, chain: Chain) -> web3.Web3:
+    def connect_to_web3_provider(provider: str, chain: Chain) -> Web3:
 
         if provider == "infura":
             url_base = {
@@ -259,7 +266,7 @@ class FastW3:
             api_key = os.environ["INFURA_API_KEY"]
             url = f"{url_base}/{api_key}"
             log.info(f"connecting to: {url}")
-            w3 = web3.Web3(web3.Web3.HTTPProvider(url))
+            w3 = Web3(Web3.HTTPProvider(url))
             assert w3.is_connected()
             log.info(f"is connected to: {url}")
             return w3
