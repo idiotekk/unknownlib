@@ -65,6 +65,7 @@ class FreqScheduler(Scheduler):
         log.info(f"start: {self._start}, end: {self._end}")
 
     def schedule(self) -> pd.Timestamp:
+        yield utcnow() # trigger on start!!!
         while True:
             self._refresh_cur_time()
             if self._cur_time > self._end:
