@@ -104,12 +104,12 @@ class FastW3:
 
     def get_block_number(self,
                          *,
-                         chain: Chain,
                          timestamp: Optional[pd.Timestamp]=None) -> int:
         """ Get the block number of a timestamp.
         If timestamp is not specified, get the latest block number.
         """
         if timestamp is not None:
+            chain = self.chain
             s = (timestamp.value / 1e9) # seconds since epoch
             chain_name = chain.name.lower()
             url = f"https://coins.llama.fi/block/{chain_name}/{s}"
@@ -180,8 +180,9 @@ class FastW3:
              *,
              value: float=0, # value in *ETH*
              gas: float, # gas, unit = gwei
+             hold: bool=False, # if True, only build tx, not send it
              **kw: dict, # other transaction args than from, nounce, value, gas
-             ) -> TxReceipt:
+             ) -> AttributeDict:
         """ Execute a transaction.
         """
         tx = func.build_transaction({
@@ -192,6 +193,9 @@ class FastW3:
             "gasPrice": self.eth.gas_price,
             **kw,
         })
+        if hold is True:
+            log.info(f"holding tx because hold is {hold}")
+            return AttributeDict(tx)
         return self._sign_and_send(tx)
     
     def _sign_and_send(self, tx: Dict[str, Any]) -> TxReceipt:

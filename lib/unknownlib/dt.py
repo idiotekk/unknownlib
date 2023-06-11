@@ -20,5 +20,5 @@ def sleep(t_: str):
     time.sleep(s)
     
 
-def now() -> pd.Timestamp:
-    return pd.Timestamp().now()
+def utcnow() -> pd.Timestamp:
+    return pd.Timestamp.utcnow()

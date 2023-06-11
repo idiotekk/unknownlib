@@ -1,5 +1,6 @@
 from .base import Element
 from ..logging import log
+from ...dt import utcnow
 import pandas as pd
 import time
 
@@ -53,7 +54,7 @@ class FreqScheduler(Scheduler):
 
     def _parse_start_end(self):
         if self._is_live:
-            self._start = pd.Timestamp.now().round(self._freq)
+            self._start = utcnow().round(self._freq)
             if self._params.get("end"):
                 self._end = pd.to_datetime(self._params["end"])
             else:
@@ -74,7 +75,7 @@ class FreqScheduler(Scheduler):
 
     @staticmethod
     def _real_time():
-        return pd.Timestamp.now()
+        return utcnow()
 
     def _refresh_cur_time(self):
         if self._is_live:
