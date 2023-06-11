@@ -1,11 +1,13 @@
+import os
 import json
 import requests
 import web3
 import pandas as pd
 
+from web3.contract import Contract
 from eth_account import Account
 from ens import ENS
-from typing import Optional
+from typing import Optional, Dict, List, Any
 
 from .enums import *
 from .. import log
@@ -18,6 +20,7 @@ class FastW3:
     _web3: web3.Web3
     _ens: ENS
     _acct: Account
+    _contracts: Dict[str, Contract] = {}
     
     def __init__(self) -> None:
         pass
@@ -25,27 +28,35 @@ class FastW3:
     def init_web3(self,
                   *,
                   ipc_path: Optional[str]=None,
-                  http_url: Optional[str]=None):
-        self._web3 = self._connect_to_web3(ipc_path=ipc_path, http_url=http_url)
+                  http_url: Optional[str]=None,
+                  provider: Optional[str]=None,
+                  chain: Optional[Chain]=None
+                  ):
+        self._web3 = self._connect_to_web3(
+            ipc_path=ipc_path, http_url=http_url, provider=provider, chain=chain)
     
     def _connect_to_web3(self,
                   *,
                   ipc_path: Optional[str]=None,
-                  http_url: Optional[str]=None):
+                  http_url: Optional[str]=None,
+                  provider: Optional[str]=None,
+                  chain: Optional[Chain]=None
+                  ):
         from web3 import Web3
         if ipc_path is not None:
             self._web3 = Web3(Web3.IPCProvider(ipc_path))
         elif http_url is not None:
             self._web3 = Web3(Web3.HTTProvider(http_url))
+        elif provider is not None and chain is not None:
+            self._web3 = connect_to_web3_provider(provider=provider, chain=chain)
         else:
-            raise ValueError("")
-        assert self._we3.is_connected(), "Web3 is not connected"
+            raise ValueError("set ipc_path, http_url or (provider, chain)")
+        assert self._web3.is_connected(), "Web3 is not connected"
 
     def init_acct(self,
                   *,
                   priv_key: str):
         self._acct = Account.from_key(priv_key)
-    
     
     def init_ens(self,
                  *,
@@ -57,79 +68,209 @@ class FastW3:
         else:
             _web3 = self._web3
         self._ens = ENS.from_web3(_web3)
-
     
     @property
-    def web3(self):
+    def web3(self) -> web3.Web3:
         return self._web3
     
     @property
-    def acct(self):
+    def acct(self) -> Account:
         return self._acct
 
     @property
-    def ens(self):
+    def ens(self) -> ENS:
         return self._ens
-
+    
+    def contract(self, label: str) -> Contract:
+        """ Fetch contract by label.
+        """
+        return self._contracts[label]
 
     def get_block_number(self,
                          *,
-                         timestamp: Optional[pd.Timestamp]=None):
+                         chain: Chain,
+                         timestamp: Optional[pd.Timestamp]=None) -> int:
         """ Get the block number of a timestamp.
         If timestamp is not specified, get the latest block number.
         """
         if timestamp is not None:
-            seconds_since_epoch = (timestamp.value / 1e9)
+            s = (timestamp.value / 1e9) # seconds since epoch
+            chain_name = chain.name
+            url = f"https://coins.llama.fi/block/{chain_name}/{s}"
+            height = get_json_from_url(url)["height"]
+            dt = pd.to_datetime(s * 1e9, utc=True)
+            log.info(f"{chain} height = {height} as of {dt}")
+            return height
         else:
             return self._web3.eth.get_block_number()
 
     def get_block_time(self,
                        *,
                        block_number: int,
-                       tz="US/Eastern"):
+                       tz: str="US/Eastern") -> pd.Timestamp:
         return pd.to_datetime(
             self._web3.eth.get_block(block_number).timestamp * 1e9,
             utc=True).tz_convert(tz)
 
+    def get_contract(self,
+                     addr: str,
+                     chain: Chain,
+                     impl_addr: Optional[str]=None,
+                     label: str=None,
+                     ) -> Contract:
+        """
+        Create a Contract from addr.
+        
+        Parameters
+        ----------
+        impl_addr : str | None
+            Must set if `addr` is a proxy, otherwise ABI is not right.
+        """
+        if addr in self._contracts:
+            log.info(f"fetching contract from cache")
+            return self._contracts[addr]
+        addr = self._web3.to_checksum_address(addr)
+        if impl_addr is None:
+            impl_addr = addr
+        log.info(f"addr: {addr}\nimpl addr: {impl_addr}")
+        abi = self.get_abi(impl_addr, from_cache=True, chain=chain)
+        contract = self._web3.eth.contract(address=addr, abi=abi)
+        self._contracts[addr] = contract
+        if label is not None:
+            log.info(f"contract cached as '{label}'")
+            self._contracts[label] = contract
+        return contract
+        
+    def write_contract(self,
+                       *,
+                       contract: Contract,
+                       func: str,
+                       func_args: tuple=[],
+                       value: float, # value in *ETH*
+                       gas: int, # gas, unit = gwei
+                       gas_price: int, # gas price in *gwei*
+                       tx_args: dict={}, # other transaction args than from, nounce, value, gas, gasPrice
+                       ) -> web3.types.TxReceipt:
+        """ Execute a transaction.
+        """
+        call_func = contract.functions[func](*func_args)
+        nonce = self._we3.eth.get_transaction_count(self._acct.address)
+        tx = call_func.build_transaction({
+            "from": self._acct.address,
+            "nonce": nonce,
+            "value": self._web3.to_wei(value, "ether"),
+            "gas": gas,
+            "gasPrice": self._web3.to_wei(gas_price, "gwei"),
+            **tx_args,
+        })
+        return self._sign_and_send(tx)
+    
+    def _sign_and_send(self, tx: Dict[str, Any]) -> web3.types.TxReceipt:
+        """ Sign, send and transaction and obtain receipt.
+        """
+        log.info(f"signing transaction...")
+        signed_tx = self._acct.sign_transaction(tx)
+        log.info(f"sending transaction...")
+        tx_hash = self._web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        log.info(f"wating for transaction receipt...")
+        tx_receipt = self._web3.eth.wait_for_transaction_receipt(tx_hash)
+        return tx_receipt
 
-def get_abi_of(addr: str,
-               *,
-               from_cache :bool=True,
-               chain: Chain=Chain.ETHEREUM) -> list:
-    """
-    Get abi from contract address.
-    addr : str
-    from_cache ： bool
-        if True, check cache file first TODO: use 3rd party caching library
-    """
-    # Exports contract ABI in JSON
-    abi_endpoint_map = {
-        Chain.ETHEREUM: 'https://api.etherscan.io/api?module=contract&action=getabi&address=',
-        Chain.ARBITRUM: 'https://api.arbiscan.io/api?module=contract&action=getabi&address=',
-    }
-    abi_endpoint = abi_endpoint_map[chain]
-    cache_file = f"/tmp/{addr}.abi.json"
-    if from_cache:
-        try:
-            with open(cache_file) as f:
-                abi_json = json.load(f)
-                print(f"read from {cache_file}")
-                return abi_json
-        except Exception:
-            print(f"failed to read from {cache_file}")
+    def read_contract(self,
+             contract: Contract,
+             func: str=None,
+             func_args: tuple=[],
+             ) -> Any:
+        """ Query a contract function.
+        """
+        call_func = contract.functions[func](*func_args)
+        return call_func.call()
+        
+    def send_ether(self, *,
+                   to: str, # target address
+                   value: float, # value in *ETH*
+                   gas: float,
+                   gas_price: float,
+                   ) -> web3.types.TxReceipt:
 
-    def _get_json_from_url(url: str) -> object:
+        nonce = self._web3.eth.get_transaction_count(self._acct.address)
+        to = self._web3.to_checksum_address(to)
+        tx = {
+            "nonce": nonce,
+            "to": to,
+            "value": self._web3.to_wei(value, "ether"),
+            "gas": gas,
+            "gasPrice": self._web3.to_wei(gas_price, "gwei"),
+        }
+        return self._sign_and_send(tx)
+
+
+    @staticmethod
+    def get_abi(contract_addr: str,
+                *,
+                from_cache :bool=True,
+                chain: Chain=Chain.ETHEREUM) -> list:
+        """
+        Get abi from contract address.
+        contract_addr : str
+        from_cache ： bool
+            if True, check cache file first.
+            TODO: use 3rd party caching library
+        """
+        # Exports contract ABI in JSON
+        abi_endpoint_map = {
+            Chain.ETHEREUM: 'https://api.etherscan.io/api?module=contract&action=getabi&address=',
+            Chain.ARBITRUM: 'https://api.arbiscan.io/api?module=contract&action=getabi&address=',
+        }
+        abi_endpoint = abi_endpoint_map[chain]
+        cache_file = f"/tmp/abi/{chain}.{contract_addr}.json"
+        if from_cache:
+            try:
+                with open(cache_file) as f:
+                    abi_json = json.load(f)
+                    print(f"read from {cache_file}")
+                    return abi_json
+            except Exception:
+                print(f"failed to read from {cache_file}")
+
+
+        abi_url = f"{abi_endpoint}{contract_addr}"
+        abi_json = json.loads(get_json_from_url(abi_url)["result"])
+
+        with open(cache_file, "w") as f:
+            json.dump(abi_json, f)
+            print(f"cached to: {cache_file}")
+        return abi_json
+
+
+    @staticmethod
+    def connect_to_web3_provider(provider: str, chain: Chain) -> web3.Web3:
+
+        if provider == "infura":
+            url_base = {
+                Chain.ETHEREUM: "https://mainnet.infura.io/v3",
+                Chain.GOERLI: "https://goerli.infura.io/v3",
+                Chain.SEPOLIA: "https://serpolia.infura.io/v3",
+                Chain.AVALANCHE: "https://avalanche-mainnet.infura.io/v3",
+                Chain.ARBITRUM: "https://arbitrum-mainnet.infura.io/v3",
+                Chain.OPTIMISM: "https://optimism-mainnet.infura.io/v3",
+                Chain.POLYGON: "https://polygon-mainnet.infura.io/v3",
+            }[chain]
+            api_key = os.environ["INFURA_API_KEY"]
+            url = f"{url_base}/{api_key}"
+            log.info(f"connecting to: {url}")
+            w3 = web3.Web3(web3.Web3.HTTPProvider(url))
+            assert w3.is_connected()
+            log.info(f"is connected to: {url}")
+            return w3
+        else:
+            NotImplementedError(f"not implemented provider: {provider}")
+
+    @staticmethod
+    def get_json_from_url(url: str) -> object:
         """ GET response from a url as json.
         """
         log.info(f"requesting from {url}")
         response = requests.get(url)
         response_json = response.json()
         return response_json
-
-    abi_url = f"{abi_endpoint}{addr}"
-    abi_json = json.loads(_get_json_from_url(abi_url)["result"])
-
-    with open(cache_file, "w") as f:
-        json.dump(abi_json, f)
-        print(f"cached to: {cache_file}")
-    return abi_json
