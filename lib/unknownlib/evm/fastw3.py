@@ -111,7 +111,7 @@ class FastW3:
         """
         if timestamp is not None:
             s = (timestamp.value / 1e9) # seconds since epoch
-            chain_name = chain.name
+            chain_name = chain.name.lower()
             url = f"https://coins.llama.fi/block/{chain_name}/{s}"
             height = self.get_json_from_url(url)["height"]
             dt = pd.to_datetime(s * 1e9, utc=True)

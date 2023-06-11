@@ -21,6 +21,10 @@ class Element:
     def __init__(self, name: str, params: Dict[str, Any]):
         self._name = name
         self._params = params
+        log.info(f"""
+        name: {name}
+        type: {self.__class__},
+        params: {params}""")
 
     def set_manager(self, manager):
         self._manager = manager
