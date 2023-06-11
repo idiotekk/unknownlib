@@ -38,7 +38,7 @@ class TestFastW3Methods(unittest.TestCase):
         log.info(pformat([dict(_) for _ in logs]))
 
     def test_ens(self):
-        name_ = "9999.eth"
+        name_ = "vitalik.eth"
         addr = w3.ens.address(name_)
         log.info((name_, addr))
         self.assertEqual(name_, w3.ens.name(addr))
