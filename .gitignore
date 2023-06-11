@@ -24,3 +24,5 @@ __pycache__/
 .bazelci/
 tmp/
 test.log
+
+.private

@@ -23,3 +23,9 @@ class Chain(Enum):
         """ Lower case name.
         """
         return str(self).split(".")[-1].lower()
+
+        
+
+class ERC20(Enum):
+
+    pass
