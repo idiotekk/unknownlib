@@ -134,6 +134,7 @@ class FastW3:
                       abi: Optional[list]=None,
                       impl_addr: Optional[str]=None,
                       label: str,
+                      override: bool=True,
                       ) -> Contract:
         """
         Create a Contract from addr.
@@ -145,6 +146,15 @@ class FastW3:
         label : str
             If set, the contract will be cached in self._contracts
         """
+        # check existing contracts
+        if label in self._contracts:
+            log.warning(f"contract label {label} is already used")
+            if override:
+                log.warning(f"will override {label}")
+            if not override:
+                log.warning(f"skipped")
+                return
+
         if addr in self._contracts:
             log.info(f"fetching contract from cache")
             return self._contracts[addr]
@@ -158,10 +168,12 @@ class FastW3:
         self.add_contract(contract, label=label)
 
     def add_contract(self, c: Contract, *, label: str):
-        if label in self._contracts:
-            log.warning(f"contract label {label} is already used; will override")
         self._contracts[label] = c
         log.info(f"contract cached as '{label}'")
+
+    def init_erc20(self, name):
+        token = ERC20[name]
+        self.init_contract(addr=token.addr, abi=token.abi, label=token.name)
 
     def call(self,
              func: ContractFunction,
@@ -185,7 +197,7 @@ class FastW3:
     def _sign_and_send(self, tx: Dict[str, Any]) -> TxReceipt:
         """ Sign, send and transaction and obtain receipt.
         """
-        log.info(f"signing transaction...")
+        log.info(f"signing transaction {tx}")
         signed_tx = self._acct.sign_transaction(tx)
         log.info(f"sending transaction...")
         tx_hash = self._web3.eth.send_raw_transaction(signed_tx.rawTransaction)
@@ -211,7 +223,6 @@ class FastW3:
             "gasPrice": self.eth.gas_price,
         }
         return self._sign_and_send(tx)
-
 
     @staticmethod
     def get_abi(contract_addr: str,
