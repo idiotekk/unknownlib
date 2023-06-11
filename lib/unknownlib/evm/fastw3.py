@@ -1,18 +1,18 @@
 import os
 import json
 import requests
-import web3
 import pandas as pd
-
+from pathlib import Path
 from web3 import Web3
 
 # for type hints
 from web3.contract import Contract
+from web3.contract.contract import ContractFunction
 from web3.types import TxReceipt
 from web3.eth.eth import Eth
 from eth_account import Account
 from ens import ENS
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Callable, Any
 
 from .enums import *
 from .. import log
@@ -23,6 +23,7 @@ class FastW3:
     """
 
     _web3: Web3
+    _chain: Chain
     _ens: ENS
     _acct: Account
     _contracts: Dict[str, Contract] = {}
@@ -39,6 +40,7 @@ class FastW3:
                   ):
         self._web3 = self._connect_to_web3(
             ipc_path=ipc_path, http_url=http_url, provider=provider, chain=chain)
+        self._chain = chain
     
     def _connect_to_web3(self,
                   *,
@@ -88,6 +90,10 @@ class FastW3:
     def eth(self) -> Eth:
         return self._web3.eth
 
+    @property
+    def chain(self) -> Chain:
+        return self._chain
+
     def contract(self, label: str) -> Contract:
         """ Fetch contract by label.
         """
@@ -121,7 +127,6 @@ class FastW3:
 
     def get_contract(self,
                      addr: str,
-                     chain: Chain,
                      impl_addr: Optional[str]=None,
                      label: str=None,
                      ) -> Contract:
@@ -140,7 +145,7 @@ class FastW3:
         if impl_addr is None:
             impl_addr = addr
         log.info(f"addr: {addr}\nimpl addr: {impl_addr}")
-        abi = self.get_abi(impl_addr, from_cache=True, chain=chain)
+        abi = self.get_abi(impl_addr, from_cache=True, chain=self._chain)
         contract = self._web3.eth.contract(address=addr, abi=abi)
         self._contracts[addr] = contract
         if label is not None:
@@ -148,27 +153,24 @@ class FastW3:
             self._contracts[label] = contract
         return contract
         
-    def write_contract(self,
-                       *,
-                       contract: Contract,
-                       func: str,
-                       func_args: tuple=[],
-                       value: float, # value in *ETH*
-                       gas: int, # gas, unit = gwei
-                       gas_price: int, # gas price in *gwei*
-                       tx_args: dict={}, # other transaction args than from, nounce, value, gas, gasPrice
-                       ) -> TxReceipt:
+    def call(self,
+             func: ContractFunction,
+             *,
+             value: float=0, # value in *ETH*
+             gas: float, # gas, unit = gwei
+             gas_price: float, # gas price in *gwei*
+             **kw: dict, # other transaction args than from, nounce, value, gas, gasPrice
+             ) -> TxReceipt:
         """ Execute a transaction.
         """
-        call_func = contract.functions[func](*func_args)
-        nonce = self._we3.eth.get_transaction_count(self._acct.address)
-        tx = call_func.build_transaction({
+        nonce = self._web3.eth.get_transaction_count(self._acct.address)
+        tx = func.build_transaction({
             "from": self._acct.address,
             "nonce": nonce,
             "value": self._web3.to_wei(value, "ether"),
-            "gas": gas,
+            "gas": int(gas),
             "gasPrice": self._web3.to_wei(gas_price, "gwei"),
-            **tx_args,
+            **kw,
         })
         return self._sign_and_send(tx)
     
@@ -182,20 +184,11 @@ class FastW3:
         log.info(f"wating for transaction receipt...")
         tx_receipt = self._web3.eth.wait_for_transaction_receipt(tx_hash)
         return tx_receipt
-
-    def read_contract(self,
-             contract: Contract,
-             func: str=None,
-             func_args: tuple=[],
-             ) -> Any:
-        """ Query a contract function.
-        """
-        call_func = contract.functions[func](*func_args)
-        return call_func.call()
         
     def send_ether(self, *,
                    to: str, # target address
-                   value: float, # value in *ETH*
+                   value: float,
+                   unit: str="ether",
                    gas: float,
                    gas_price: float,
                    ) -> TxReceipt:
@@ -205,8 +198,8 @@ class FastW3:
         tx = {
             "nonce": nonce,
             "to": to,
-            "value": self._web3.to_wei(value, "ether"),
-            "gas": gas,
+            "value": self._web3.to_wei(value, unit),
+            "gas": int(gas),
             "gasPrice": self._web3.to_wei(gas_price, "gwei"),
         }
         return self._sign_and_send(tx)
@@ -240,15 +233,14 @@ class FastW3:
             except Exception:
                 print(f"failed to read from {cache_file}")
 
-
         abi_url = f"{abi_endpoint}{contract_addr}"
         abi_json = json.loads(FastW3.get_json_from_url(abi_url)["result"])
 
+        Path(cache_file).parent.mkdir(parents=True, exist_ok=True)
         with open(cache_file, "w") as f:
             json.dump(abi_json, f)
             print(f"cached to: {cache_file}")
         return abi_json
-
 
     @staticmethod
     def connect_to_web3_provider(provider: str, chain: Chain) -> Web3:
