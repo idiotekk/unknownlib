@@ -177,6 +177,7 @@ class FastW3:
             "nonce": self._web3.eth.get_transaction_count(self._acct.address),
             "value": self._web3.to_wei(value, "ether"), # not that this won't count as an API call
             "gas": int(gas),
+            "gasPrice": self.eth.gas_price,
             **kw,
         })
         return self._sign_and_send(tx)
@@ -207,6 +208,7 @@ class FastW3:
             "to": to,
             "value": self._web3.to_wei(value, unit),
             "gas": int(gas),
+            "gasPrice": self.eth.gas_price,
         }
         return self._sign_and_send(tx)
 

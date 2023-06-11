@@ -9,12 +9,12 @@ from unknownlib.io import load_json
 from unknownlib import log
 
 def _fectch_key(path):
-    return load_json((Path(__file__).parent / path).absolute())
+    return load_json((Path(__file__).parent / "../.private" / path).absolute())
  
 w3 = FastW3()
-os.environ["INFURA_API_KEY"] = _fectch_key(".private/infura_api_key.json")
+os.environ["INFURA_API_KEY"] = _fectch_key("infura_api_key.json")
 w3.init_web3(provider="infura", chain=Chain.GOERLI)
-priv_key = _fectch_key(".private/private_key.json") # 0x4cb32d187373a8a5B8B976923227d648e33e4d4a
+priv_key = _fectch_key("test_private_key.json") # 0x4cb32d187373a8a5B8B976923227d648e33e4d4a
 w3.init_acct(private_key=priv_key)
 friend_addr = "0xE5d4924413ae59AE717358526bbe11BB4A5D76b9"
    
