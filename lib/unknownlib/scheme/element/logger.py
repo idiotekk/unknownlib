@@ -35,4 +35,6 @@ class Logger(Element):
     def format_fileanme(self, f):
 
         f = f.replace("%TIMESTAMP%", utcnow().strftime("%Y%m%d_%H%M%S")).replace("%NAME%", self._name)
+        if "%" in f:
+            raise ValueError(f"expect no '%' remained in foramtted filename; got: {f}")
         return f
