@@ -1,0 +1,15 @@
+{
+  "dumb_scheduler": {
+    "type": "simple_scheduler",
+    "start": 0,
+    "end": 10
+  },
+  "booboobook": {
+    "type": "boobook",
+  },
+  "serializer": {
+    "type": "serializer",
+    "output_file": "/tmp/test.csv",
+    "vars": ["booboobook.name"]
+  }
+}
