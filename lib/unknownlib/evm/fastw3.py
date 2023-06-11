@@ -15,7 +15,7 @@ from eth_account import Account
 from ens import ENS
 from typing import Optional, Dict, List, Callable, Any
 
-from .enums import *
+from .enums import Chain, ERC20
 from .. import log
 
 
