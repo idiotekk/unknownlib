@@ -130,6 +130,7 @@ class FastW3:
 
     def get_contract(self,
                      addr: str,
+                     abi: Optional[list]=None,
                      impl_addr: Optional[str]=None,
                      label: str=None,
                      ) -> Contract:
@@ -147,10 +148,11 @@ class FastW3:
             log.info(f"fetching contract from cache")
             return self._contracts[addr]
         addr = self._web3.to_checksum_address(addr)
-        if impl_addr is None:
-            impl_addr = addr
-        log.info(f"addr: {addr}\nimpl addr: {impl_addr}")
-        abi = self.get_abi(impl_addr, from_cache=True, chain=self._chain)
+        if abi is None:
+            if impl_addr is None:
+                impl_addr = addr
+            log.info(f"addr: {addr}\nimpl addr: {impl_addr}")
+            abi = self.get_abi(impl_addr, from_cache=True, chain=self._chain)
         contract = self._web3.eth.contract(address=addr, abi=abi)
         self._contracts[addr] = contract
         if label is not None:
@@ -165,7 +167,7 @@ class FastW3:
              *,
              value: float=0, # value in *ETH*
              gas: float, # gas, unit = gwei
-             gas_price: float, # gas price in *gwei*
+             gas_price: Optional[int] = None, # gas price in wei
              **kw: dict, # other transaction args than from, nounce, value, gas, gasPrice
              ) -> TxReceipt:
         """ Execute a transaction.
@@ -175,7 +177,7 @@ class FastW3:
             "nonce": self._web3.eth.get_transaction_count(self._acct.address),
             "value": self._web3.to_wei(value, "ether"), # not that this won't count as an API call
             "gas": int(gas),
-            "gasPrice": self._web3.to_wei(gas_price, "gwei"),
+            "gasPrice": gas_price or self.eth.gas_price,
             **kw,
         })
         return self._sign_and_send(tx)
@@ -196,9 +198,10 @@ class FastW3:
                    value: float,
                    unit: str="ether",
                    gas: float,
-                   gas_price: float,
+                   gas_price: Optional[int] = None, # gas price in wei
                    ) -> TxReceipt:
 
+        log.info(f"sending {value} {unit} to {to}")
         nonce = self._web3.eth.get_transaction_count(self._acct.address)
         to = self._web3.to_checksum_address(to)
         tx = {
@@ -206,7 +209,7 @@ class FastW3:
             "to": to,
             "value": self._web3.to_wei(value, unit),
             "gas": int(gas),
-            "gasPrice": self._web3.to_wei(gas_price, "gwei"),
+            "gasPrice": gas_price or self.eth.gas_price,
         }
         return self._sign_and_send(tx)
 
