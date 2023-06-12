@@ -168,9 +168,6 @@ class FastW3:
                 log.warning(f"skipped")
                 return
 
-        if addr in self._contracts:
-            log.info(f"fetching contract from cache")
-            return self._contracts[addr]
         addr = self._web3.to_checksum_address(addr)
         if abi is None:
             if impl_addr is None:
@@ -192,12 +189,12 @@ class FastW3:
         self.init_contract(addr=token.addr, abi=token.abi, label=token.name, override=False)
 
     @cache
-    def _decimals(self, token: ERC20):
+    def _decimals(self, token: ERC20) -> int:
         d = self.contract(token.name).functions.decimals().call()
         log.info(f"{token} decimals = {d}")
         return d
 
-    def balance_of(self, *, token: ERC20):
+    def balance_of(self, *, token: ERC20) -> int:
         """ Get the balance of an ERC20 token.
         """
         self.init_erc20(token.name)
@@ -230,7 +227,7 @@ class FastW3:
         return self._sign_and_send(tx)
     
     def _sign_and_send(self, tx: Dict[str, Any]) -> TxReceipt:
-        """ Sign, send and transaction and obtain receipt.
+        """ Sign and send a transaction and obtain receipt.
         """
         log.info(f"signing transaction {tx}")
         signed_tx = self._acct.sign_transaction(tx)
@@ -284,10 +281,10 @@ class FastW3:
             try:
                 with open(cache_file) as f:
                     abi_json = json.load(f)
-                    print(f"read from {cache_file}")
+                    log.info(f"read from {cache_file}")
                     return abi_json
             except Exception:
-                print(f"failed to read from {cache_file}")
+                log.info(f"failed to read from {cache_file}")
 
         abi_url = f"{abi_endpoint}{contract_addr}"
         abi_json = json.loads(FastW3.get_json_from_url(abi_url)["result"])
