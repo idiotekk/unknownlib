@@ -3,10 +3,11 @@ import sys
 import unittest
 import random
 from pathlib import Path
-from unknownlib.evm.fastw3 import FastW3
+from unknownlib.evm.fastw3 import FastW3, ERC20
 from unknownlib.evm.enums import Chain
 from unknownlib.io import load_json
 from unknownlib import log
+from unknownlib.dt import sleep
 
 def _fectch_key(path):
     return load_json((Path(__file__).parent / "../.private" / path).absolute())
@@ -31,17 +32,18 @@ class TestFastW3Methods(unittest.TestCase):
     def test_contract(self):
 
         # check balance of coin
-        token_name = "GOERLI_USDC"
-        w3.init_erc20("GOERLI_USDC")
-        balance_ = w3.contract(token_name).functions.balanceOf(w3.acct.address).call()
-        log.info(f"balance of {token_name} = {balance_}")
+        token = ERC20["GOERLI_USDC"]
+        w3.init_erc20(token)
+        balance_ = w3.balance_of(token=token)
+        log.info(f"balance of {token} = {balance_}")
 
         # change allowance
-        allowance_before = w3.contract(token_name).functions.allowance(w3.acct.address, friend_addr).call()
+        allowance_before = w3.contract(token).functions.allowance(w3.acct.address, friend_addr).call()
         new_allowance = int(random.randint(2, 9) * 1e10)
-        w3.call(w3.contract(token_name).functions.approve(friend_addr, new_allowance), gas=2100000,)
-        allowance_after = w3.contract(token_name).functions.allowance(w3.acct.address, friend_addr).call()
+        w3.call(w3.contract(token).functions.approve(friend_addr, new_allowance), gas=2100000,)
+        allowance_after = w3.contract(token).functions.allowance(w3.acct.address, friend_addr).call()
         log.info((allowance_before, new_allowance, allowance_after))
+        sleep("5s")
         self.assertEqual(new_allowance, allowance_after)
 
 
