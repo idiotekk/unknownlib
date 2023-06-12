@@ -25,7 +25,6 @@ class TestFastW3Methods(unittest.TestCase):
 
     def test_contract(self):
 
-        # check balance of coin
         contract_name = "ENS public resolver"
         w3.init_contract(
             addr="0x231b0ee14048e9dccd1d247744d114a4eb5e8e63",
