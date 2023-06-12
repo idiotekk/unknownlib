@@ -13,7 +13,8 @@ from web3.types import TxReceipt
 from web3.eth.eth import Eth
 from eth_account import Account
 from ens import ENS
-from typing import Optional, Dict, List, Callable, Any
+from typing import Optional, Dict, List, Callable, Any, Union
+from functools import cache
 
 from .enums import Chain, ERC20
 from .. import log
@@ -95,9 +96,14 @@ class FastW3:
     def chain(self) -> Chain:
         return self._chain
 
-    def contract(self, label: str) -> Contract:
+    def contract(self, label_or_token: str) -> Contract:
         """ Fetch contract by label.
         """
+        if isinstance(label_or_token, ERC20):
+            label = label_or_token.name
+        else:
+            assert isinstance(label_or_token, str)
+            label = label_or_token
         if label not in self._contracts:
             raise ValueError(f"{label} is not found; existing contracts: {list(self._contracts.keys())}")
         return self._contracts[label]
@@ -171,9 +177,27 @@ class FastW3:
         self._contracts[label] = c
         log.info(f"contract cached as '{label}'")
 
-    def init_erc20(self, name):
-        token = ERC20[name]
-        self.init_contract(addr=token.addr, abi=token.abi, label=token.name)
+    def init_erc20(self, token_or_token_name: Union[ERC20, str]):
+        if isinstance(token_or_token_name, ERC20):
+            token = token_or_token_name
+        else:
+            token = ERC20[token_or_token_name]
+        self.init_contract(addr=token.addr, abi=token.abi, label=token.name, override=False)
+
+    @cache
+    def _decimals(self, token: ERC20):
+        d = self.contract(token.name).functions.decimals().call()
+        log.info(f"{token} decimals = {d}")
+        return d
+
+    def balance_of(self, *, token: ERC20):
+        """ Get the balance of an ERC20 token.
+        """
+        self.init_erc20(token.name)
+        balance = self.contract(token.name).functions.balanceOf(self.acct.address).call()
+        decimals = self._decimals(token)
+        log.info(f"balance of {token} = {balance} / 10e{decimals} = {balance/(10**decimals)}")
+        return balance
 
     def call(self,
              func: ContractFunction,
