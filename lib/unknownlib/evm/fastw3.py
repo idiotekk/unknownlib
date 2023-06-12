@@ -18,6 +18,7 @@ from functools import cache
 
 from .enums import Chain, ERC20
 from .. import log
+from ..io import dump_json
 
 
 class FastW3:
@@ -57,7 +58,7 @@ class FastW3:
         elif http_url is not None:
             _web3 = Web3(Web3.HTTProvider(http_url))
         elif provider is not None and chain is not None:
-            _web3 = self.connect_to_web3_provider(provider=provider, chain=chain)
+            _web3 = self.connect_to_http_provider(provider=provider, chain=chain)
         else:
             raise ValueError("set ipc_path, http_url or (provider, chain)")
         assert _web3.is_connected(), "Web3 is not connected"
@@ -96,8 +97,8 @@ class FastW3:
     def chain(self) -> Chain:
         return self._chain
 
-    def contract(self, label_or_token: str) -> Contract:
-        """ Fetch contract by label.
+    def contract(self, label_or_token: Union[str, ERC20]) -> Contract:
+        """ Fetch contract by label or token.
         """
         if isinstance(label_or_token, ERC20):
             label = label_or_token.name
@@ -141,16 +142,22 @@ class FastW3:
                       impl_addr: Optional[str]=None,
                       label: str,
                       override: bool=True,
-                      ) -> Contract:
+                      ):
         """
-        Create a Contract from addr.
+        Directly return the contract is already created and found by `label` in self._contracts.
+        Otherwise, create a Contract from addr and abi/impl_addr.
         
         Parameters
         ----------
+        addr : str
+            Contract address.
+        abi : list
+            Contract ABI.
         impl_addr : str | None
-            Must set if `addr` is a proxy, otherwise ABI is not right.
+            Implementation address.
+            Note: must set either `abi` or `impl_addr` if `addr` is a proxy, otherwise ABI is not right.
         label : str
-            If set, the contract will be cached in self._contracts
+            If set, the contract will be cached in self._contracts.
         """
         # check existing contracts
         if label in self._contracts:
@@ -239,6 +246,8 @@ class FastW3:
                    unit: str="ether",
                    gas: float,
                    ) -> TxReceipt:
+        """ Send ether of `value` in `unit` to `to`.
+        """
 
         log.info(f"sending {value} {unit} to {to}")
         nonce = self._web3.eth.get_transaction_count(self._acct.address)
@@ -284,13 +293,11 @@ class FastW3:
         abi_json = json.loads(FastW3.get_json_from_url(abi_url)["result"])
 
         Path(cache_file).parent.mkdir(parents=True, exist_ok=True)
-        with open(cache_file, "w") as f:
-            json.dump(abi_json, f)
-            print(f"cached to: {cache_file}")
+        dump_json(abi_json, cache_file)
         return abi_json
 
     @staticmethod
-    def connect_to_web3_provider(provider: str, chain: Chain) -> Web3:
+    def connect_to_http_provider(provider: str, chain: Chain) -> Web3:
 
         if provider == "infura":
             url_base_map = {
@@ -330,7 +337,6 @@ class FastW3:
                        from_block: int,
                        to_block: int,
                        topics: List[str]=[],
-                       process: bool=True,
                        ) -> List[AttributeDict]:
         """ Get event logs of a contract for block within range [from_block, to_block].
 
@@ -363,8 +369,5 @@ class FastW3:
         raw_logs = self.eth.get_logs(filter_params)
         log.info(f"number of logs = {len(raw_logs)}")
 
-        if process:
-            processed_log = [dict(c.events[event_name]().process_log(raw_log)) for raw_log in raw_logs]
-            return processed_log
-        else:
-            return raw_logs
+        processed_log = [dict(c.events[event_name]().process_log(raw_log)) for raw_log in raw_logs]
+        return processed_log
