@@ -192,13 +192,14 @@ class FastW3:
         log.info(f"{token} decimals = {d}")
         return d
 
-    def balance_of(self, *, token: ERC20) -> int:
+    def balance_of(self, *, token: ERC20, addr: Optional[str]=None) -> int:
         """ Get the balance of an ERC20 token.
         """
         self.init_erc20(token.name)
+        addr = addr or self.acct.address
         balance = self.contract(token.name).functions.balanceOf(self.acct.address).call()
         decimals = self._decimals(token)
-        log.info(f"balance of {token} = {balance} / 10e{decimals} = {balance/(10**decimals)}")
+        log.info(f"address {addr} balance of {token} = {balance} / 10e{decimals} = {balance/(10**decimals)}")
         return balance
 
     def call(self,
@@ -336,3 +337,7 @@ class FastW3:
 
         processed_log = [dict(c.events[event_name]().process_log(raw_log)) for raw_log in raw_logs]
         return processed_log
+
+    @staticmethod
+    def to_json(obj):
+        return json.loads(Web3.to_json(obj))
