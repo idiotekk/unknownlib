@@ -4,6 +4,7 @@ import requests
 import pandas as pd
 from pathlib import Path
 from web3 import Web3
+from .etherscan import Etherscan
 
 # for type hints
 from web3.contract import Contract
@@ -27,6 +28,7 @@ class FastW3:
 
     _web3: Web3
     _chain: Chain
+    _scan: Etherscan
     _ens: ENS
     _acct: Account
     _contracts: Dict[str, Contract] = {}
@@ -45,6 +47,9 @@ class FastW3:
             ipc_path=ipc_path, http_url=http_url, provider=provider, chain=chain)
         self._chain = chain
     
+    def init_scan(self, chain: Chain):
+        self._scan = Etherscan(chain)
+
     def _connect_to_web3(self,
                   *,
                   ipc_path: Optional[str]=None,
@@ -116,14 +121,7 @@ class FastW3:
         If timestamp is not specified, get the latest block number.
         """
         if timestamp is not None:
-            chain = self.chain
-            s = (timestamp.value / 1e9) # seconds since epoch
-            chain_name = chain.name.lower()
-            url = f"https://coins.llama.fi/block/{chain_name}/{s}"
-            height = self.get_json_from_url(url)["height"]
-            dt = pd.to_datetime(s * 1e9, utc=True)
-            log.info(f"{chain} height = {height} as of {dt}")
-            return height
+            return self._scan.get_block_number_by_timestamp(int(timestamp.value / 1e9))
         else:
             return self._web3.eth.get_block_number()
 
