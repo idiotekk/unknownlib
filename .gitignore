@@ -26,3 +26,4 @@ tmp/
 test.log
 
 .private
+venv
