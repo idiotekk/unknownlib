@@ -139,7 +139,6 @@ class FastW3:
                       abi: Optional[list]=None,
                       impl_addr: Optional[str]=None,
                       label: str,
-                      override: bool=True,
                       ):
         """
         Directly return the contract is already created and found by `label` in self._contracts.
@@ -158,14 +157,7 @@ class FastW3:
             If set, the contract will be cached in self._contracts.
         """
         # check existing contracts
-        if label in self._contracts:
-            log.warning(f"contract label {label} is already used")
-            if override:
-                log.warning(f"will override {label}")
-            if not override:
-                log.warning(f"skipped")
-                return
-
+        assert not label in self._contracts, f"contract {label} is already initialized"
         addr = self._web3.to_checksum_address(addr)
         if abi is None:
             if impl_addr is None:
@@ -184,13 +176,11 @@ class FastW3:
             token = token_or_token_name
         else:
             token = ERC20[token_or_token_name]
-        self.init_contract(addr=token.addr, abi=token.abi, label=token.name, override=False)
+        self.init_contract(addr=token.addr, abi=token.abi, label=token.name)
 
     @cache
     def _decimals(self, token: ERC20) -> int:
-        d = self.contract(token.name).functions.decimals().call()
-        log.info(f"{token} decimals = {d}")
-        return d
+        return self.contract(token.name).functions.decimals().call()
 
     def balance_of(self, *, token: ERC20, addr: Optional[str]=None) -> int:
         """ Get the balance of an ERC20 token.
@@ -275,14 +265,12 @@ class FastW3:
                 Chain.OPTIMISM: "https://optimism-mainnet.infura.io/v3",
                 Chain.POLYGON: "https://polygon-mainnet.infura.io/v3",
             }
-
             url_base = url_base_map[chain]
             api_key = os.environ["INFURA_API_KEY"]
             url = f"{url_base}/{api_key}"
             log.info(f"connecting to: {url}")
             w3 = Web3(Web3.HTTPProvider(url))
             assert w3.is_connected()
-            log.info(f"is connected to: {url}")
             return w3
         else:
             NotImplementedError(f"not implemented provider: {provider}")
