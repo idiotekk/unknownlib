@@ -171,7 +171,7 @@ class FastW3:
             if impl_addr is None:
                 impl_addr = addr
             log.info(f"addr: {addr}\nimpl addr: {impl_addr}")
-            abi = self.get_abi(impl_addr, from_cache=True, chain=self._chain)
+            abi = self.get_abi(impl_addr)
         contract = self._web3.eth.contract(address=addr, abi=abi)
         self.add_contract(contract, label=label)
 
@@ -256,40 +256,10 @@ class FastW3:
         }
         return self._sign_and_send(tx)
 
-    @staticmethod
-    def get_abi(contract_addr: str,
-                *,
-                from_cache :bool=True,
-                chain: Chain=Chain.ETHEREUM) -> list:
+    def get_abi(self, addr: str) -> list:
+        """ Get abi from contract address.
         """
-        Get abi from contract address.
-        contract_addr : str
-        from_cache ： bool
-            if True, check cache file first.
-            TODO: use 3rd party caching library
-        """
-        # Exports contract ABI in JSON
-        abi_endpoint_map = {
-            Chain.ETHEREUM: 'https://api.etherscan.io/api?module=contract&action=getabi&address=',
-            Chain.ARBITRUM: 'https://api.arbiscan.io/api?module=contract&action=getabi&address=',
-        }
-        abi_endpoint = abi_endpoint_map[chain]
-        cache_file = f"/tmp/abi/{chain}.{contract_addr}.json"
-        if from_cache:
-            try:
-                with open(cache_file) as f:
-                    abi_json = json.load(f)
-                    log.info(f"read from {cache_file}")
-                    return abi_json
-            except Exception:
-                log.info(f"failed to read from {cache_file}")
-
-        abi_url = f"{abi_endpoint}{contract_addr}"
-        abi_json = json.loads(FastW3.get_json_from_url(abi_url)["result"])
-
-        Path(cache_file).parent.mkdir(parents=True, exist_ok=True)
-        dump_json(abi_json, cache_file)
-        return abi_json
+        return self._scan.get(module="contract", action="getabi", address=addr)
 
     @staticmethod
     def connect_to_http_provider(provider: str, chain: Chain) -> Web3:
