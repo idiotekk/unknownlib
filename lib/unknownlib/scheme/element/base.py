@@ -91,6 +91,7 @@ class ElementCatalog:
         """ Recursively find and register all subclasses of Element.
         This should be called before building a scheme.
         """
+        cls._catalog = {} # reset
         def search_subclasses(cls):
             return cls.__subclasses__() + sum(
                 [search_subclasses(_) for _ in cls.__subclasses__()], [])
@@ -110,7 +111,10 @@ class ElementManager:
     """ A central entiry that creates, initializes and triggers element.
     """
     
-    _elements: Dict[str, type] = {}
+    _elements: Dict[str, type]
+
+    def __init__(self) -> None:
+        self._elements = {}
     
     def create_element(self, name: str, params: Dict[str, Any]):
         """ Create an element with given name and parameters.

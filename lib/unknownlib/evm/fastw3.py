@@ -31,10 +31,10 @@ class FastW3:
     _scan: Etherscan
     _ens: ENS
     _acct: Account
-    _contracts: Dict[str, Contract] = {}
+    _contracts: Dict[str, Contract]
     
     def __init__(self) -> None:
-        pass
+        self._contracts = {}
 
     def init_web3(self,
                   *,
