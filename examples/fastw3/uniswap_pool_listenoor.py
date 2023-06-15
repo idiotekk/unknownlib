@@ -1,12 +1,13 @@
 """
-This example fetch trade price from uniswap v3 USDC pool,
-then plot the prices in a interactive chart.
+This example fetches trade prices from uniswap v3 USDC pool,
+then plot the prices in an interactive chart.
 """
 import os
 import pandas as pd
 import numpy as np
 from unknownlib.evm.fastw3 import FastW3, Chain
-from unknownlib.plt.bk import plot
+from unknownlib.plt.bk import tsplot
+from bokeh.plotting import output_file, save
 
 
 if __name__ == "__main__":
@@ -15,8 +16,8 @@ if __name__ == "__main__":
     fw.init_web3(provider="infura", chain=Chain.ETHEREUM)
     fw.init_scan(chain=Chain.ETHEREUM)
     fw.init_contract(addr="0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640",
-                    abi=fw.get_abi(addr="0x8f8ef111b67c04eb1641f5ff19ee54cda062f163"),
-                    label="uniswap_v3_usdc3")
+                     abi=fw.get_abi(addr="0x8f8ef111b67c04eb1641f5ff19ee54cda062f163"),
+                     label="uniswap_v3_usdc3")
 
     tz = "US/Eastern"
     sdate = 20230613
@@ -38,9 +39,6 @@ if __name__ == "__main__":
     df["side"] = np.where( df["amount0"] > 0, "buy", "sell")
     df["timestamp"] = start_time + (end_time - start_time) * ( df["blockNumber"] - start_block_number) / (end_block_number - start_block_number) 
 
-
-    from unknownlib.plt.bk import tsplot
-    from bokeh.plotting import output_file, save
     p = tsplot(df,
         time_var="timestamp",
         hue="side",
@@ -48,5 +46,5 @@ if __name__ == "__main__":
         y="price",
         figsize=(1600, 1200),
         show=False)
-    output_file(os.path.expandvars('$HOME/Desktop/plot.html'), mode='inline')
+    output_file(os.path.expandvars('$HOME/Desktop/uniswap-eth-usdc.html'), mode='inline')
     save(p)
