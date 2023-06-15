@@ -176,7 +176,10 @@ class FastW3:
             token = token_or_token_name
         else:
             token = ERC20[token_or_token_name]
-        self.init_contract(addr=token.addr, abi=token.abi, label=token.name)
+        if token.name in self.contract: # don't init again
+            return
+        else:
+            self.init_contract(addr=token.addr, abi=token.abi, label=token.name)
 
     @cache
     def _decimals(self, token: ERC20) -> int:
