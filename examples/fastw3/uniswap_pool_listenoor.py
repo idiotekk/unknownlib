@@ -21,10 +21,10 @@ if __name__ == "__main__":
     tz = "US/Eastern"
     sdate = 20230613
     edate = 20230614
-    start_timestamp = int(pd.to_datetime(str(sdate)).tz_localize(tz).value / 1e9)
-    end_timestamp = int(pd.to_datetime(str(edate)).tz_localize(tz).value / 1e9)
-    start_block_number = fw._scan.get_block_number_by_timestamp(start_timestamp)
-    end_block_number = fw._scan.get_block_number_by_timestamp(end_timestamp)
+    start_time = pd.to_datetime("20230613").tz_localize("US/Eastern")
+    end_time = pd.to_datetime("20230614").tz_localize("US/Eastern")
+    start_block_number = fw._scan.get_block_number_by_timestamp(int(start_time.value / 1e9))
+    end_block_number = fw._scan.get_block_number_by_timestamp(int(end_time.value / 1e9)) 
 
     logs = fw.get_event_logs(
         contract="uniswap_v3_usdc3",
@@ -36,12 +36,17 @@ if __name__ == "__main__":
     df = pd.DataFrame([{**_["args"], **{k: _[k] for k in ["blockNumber"]}} for _ in logs])
     df["price"] = - df["amount0"] / df["amount1"] * 1e18 / 1e6
     df["side"] = np.where( df["amount0"] > 0, "buy", "sell")
+    df["timestamp"] = start_time + (end_time - start_time) * ( df["blockNumber"] - start_block_number) / (end_block_number - start_block_number) 
 
-    from bokeh.plotting import figure, output_file, save
-    p = plot(df,
-        x="blockNumber",
+
+    from unknownlib.plt.bk import tsplot
+    from bokeh.plotting import output_file, save
+    p = tsplot(df,
+        time_var="timestamp",
         hue="side",
-        line_types="cross",
-        y="price")
+        line_types="circle",
+        y="price",
+        figsize=(1600, 1200),
+        show=False)
     output_file(os.path.expandvars('$HOME/Desktop/plot.html'), mode='inline')
     save(p)
