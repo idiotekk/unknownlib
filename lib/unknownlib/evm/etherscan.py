@@ -23,6 +23,7 @@ class Etherscan:
     _api_key: str
     _base_url: str
     _retry_wait_seconds: float = 1.001 # retry after this seconds
+    _max_retries: int = 5
 
     def __init__(self, chain: Chain) -> None:
         self._api_key = os.environ[{
@@ -37,7 +38,9 @@ class Etherscan:
     def get(self, **kw):
         kw["apikey"] = self._api_key
         url = self._base_url + "&".join([f"{k}={v}" for k, v in kw.items()])
-        while True:
+
+        retries = 0
+        while True and retries < self._max_retries:
             try:
                 r = requests.get(url, headers={"User-Agent": ""})
                 return ResponseParser.parse(r)
@@ -48,6 +51,7 @@ class Etherscan:
                     time.sleep(self._retry_wait_seconds)
                 else:
                     raise e
+                retries += 1
     
     def get_block_number_by_timestamp(self, timestamp: int) -> int:
         kw = dict(

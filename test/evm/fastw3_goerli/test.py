@@ -23,9 +23,10 @@ friend_addr = "0xE5d4924413ae59AE717358526bbe11BB4A5D76b9"
 class TestFastW3Methods(unittest.TestCase):
 
     def test_send_ether(self):
+
         balance_ = w3.eth.get_balance(w3.acct.address)
         log.info(f"balance before: {balance_}")
-        w3.send_ether(to=friend_addr, value=0.000001, gas=21000)
+        w3.send_ether(to=friend_addr, value=0.000001, gas=21000, max_retries=3)
         balance_ = w3.eth.get_balance(w3.acct.address)
         log.info(f"balance after: {balance_}")
 
@@ -40,10 +41,10 @@ class TestFastW3Methods(unittest.TestCase):
         # change allowance
         allowance_before = w3.contract(token).functions.allowance(w3.acct.address, friend_addr).call()
         new_allowance = int(random.randint(2, 9) * 1e10)
-        w3.call(w3.contract(token).functions.approve(friend_addr, new_allowance), gas=2100000,)
+        w3.call(w3.contract(token).functions.approve(friend_addr, new_allowance), gas=2100000, max_retries=3)
         allowance_after = w3.contract(token).functions.allowance(w3.acct.address, friend_addr).call()
-        log.info((allowance_before, new_allowance, allowance_after))
         sleep("5s")
+        log.info((allowance_before, new_allowance, allowance_after))
         self.assertEqual(new_allowance, allowance_after)
 
 

@@ -79,7 +79,7 @@ class FastW3:
         if kw:
             _web3 = self._connect_to_web3(**kw)
         else:
-            _web3 = self._web3
+            _web3 = self.web3
         self._ens = ENS.from_web3(_web3)
     
     @property
@@ -96,11 +96,15 @@ class FastW3:
     
     @property
     def eth(self) -> Eth:
-        return self._web3.eth
+        return self.web3.eth
 
     @property
     def chain(self) -> Chain:
         return self._chain
+
+    @property
+    def scan(self) -> Etherscan:
+        return self._scan
 
     def contract(self, label_or_token: Union[str, ERC20]) -> Contract:
         """ Fetch contract by label or token.
@@ -121,16 +125,16 @@ class FastW3:
         If timestamp is not specified, get the latest block number.
         """
         if timestamp is not None:
-            return self._scan.get_block_number_by_timestamp(int(timestamp.value / 1e9))
+            return self.scan.get_block_number_by_timestamp(int(timestamp.value / 1e9))
         else:
-            return self._web3.eth.get_block_number()
+            return self.web3.eth.get_block_number()
 
     def get_block_time(self,
                        *,
                        block_number: int,
                        tz: str="US/Eastern") -> pd.Timestamp:
         return pd.to_datetime(
-            self._web3.eth.get_block(block_number).timestamp * 1e9,
+            self.web3.eth.get_block(block_number).timestamp * 1e9,
             utc=True).tz_convert(tz)
 
     def init_contract(self,
@@ -158,13 +162,13 @@ class FastW3:
         """
         # check existing contracts
         assert not label in self._contracts, f"contract {label} is already initialized"
-        addr = self._web3.to_checksum_address(addr)
+        addr = self.web3.to_checksum_address(addr)
         if abi is None:
             if impl_addr is None:
                 impl_addr = addr
             log.info(f"addr: {addr}\nimpl addr: {impl_addr}")
             abi = self.get_abi(impl_addr)
-        contract = self._web3.eth.contract(address=addr, abi=abi)
+        contract = self.web3.eth.contract(address=addr, abi=abi)
         self.add_contract(contract, label=label)
 
     def add_contract(self, c: Contract, *, label: str):
@@ -176,7 +180,7 @@ class FastW3:
             token = token_or_token_name
         else:
             token = ERC20[token_or_token_name]
-        if token.name in self._contracts: # don't init again
+        if token.name in self._contracts: # don't init again # TODO: check value
             return
         else:
             self.init_contract(addr=token.addr, abi=token.abi, label=token.name)
@@ -201,59 +205,88 @@ class FastW3:
              value: float=0, # value in *ETH*
              gas: float, # gas, unit = gwei
              hold: bool=False, # if True, only build tx, not send it
+             max_retries: int=5,
              **kw: dict, # other transaction args than from, nounce, value, gas
              ) -> AttributeDict:
         """ Execute a transaction.
         """
-        tx = func.build_transaction({
-            "from": self._acct.address,
-            "nonce": self._web3.eth.get_transaction_count(self._acct.address),
-            "value": self._web3.to_wei(value, "ether"), # not that this won't count as an API call
+        tx_args = {
+            "from": self.acct.address,
+            "nonce": self.web3.eth.get_transaction_count(self.acct.address),
+            "value": self.web3.to_wei(value, "ether"), # not that this won't count as an API call
             "gas": int(gas),
             "gasPrice": self.eth.gas_price,
             **kw,
-        })
-        if hold is True:
+        }
+        tx = func.build_transaction(tx_args)
+        if hold is True: # build but don't send
             log.info(f"holding tx because hold is {hold}")
             return AttributeDict(tx)
-        return self._sign_and_send(tx)
+        else:
+            return self._sign_and_send(tx, max_retries=max_retries)
     
-    def _sign_and_send(self, tx: Dict[str, Any]) -> TxReceipt:
+    def _sign_and_send(self,
+                       tx: Dict[str, Any],
+                       *,
+                       max_retries: int=5,
+                       timout: int=60, # num of seconds to wait for receipt
+                       ) -> TxReceipt:
         """ Sign and send a transaction and obtain receipt.
         """
-        log.info(f"signing transaction {tx}")
-        signed_tx = self._acct.sign_transaction(tx)
-        log.info(f"sending transaction...")
-        tx_hash = self._web3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        log.info(f"wating for transaction receipt...")
-        tx_receipt = self._web3.eth.wait_for_transaction_receipt(tx_hash)
-        return tx_receipt
+        retries = 0
+        while True:
+            try:
+                log.info(f"signing transaction {tx}")
+                signed_tx = self.acct.sign_transaction(tx)
+                log.info(f"sending transaction...")
+                tx_hash = self.web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+                log.info(f"wating for transaction receipt for {tx_hash.hex()}, timout = {timout}s")
+                tx_receipt = self.web3.eth.wait_for_transaction_receipt(tx_hash, timeout=timout)
+                return tx_receipt
+            except Exception as e:
+                err_msg = str(e)
+                log.info(f"failed with error: {e}")
+                if retries >= max_retries:
+                    raise Exception(f"exhausted max retries {max_retries}")
+                else:
+                    retries += 1
+                    if "nonce too low" in err_msg:
+                        tx["nonce"] += 1
+                        log.info(f"retry No.{retries} with nonce {tx['nonce']}")
+                    elif ("max fee per gas less than block base fee" in err_msg or
+                        "already known" in err_msg or
+                        "is not in the chain after" in err_msg):
+                        tx["gasPrice"] = int(tx["gasPrice"] * 1.2)
+                        log.info(f"retry No.{retries} with gasPrice {tx['gasPrice']}")
+                    else:
+                        raise Exception(f"unable to handle error; exiting")
         
     def send_ether(self, *,
                    to: str, # target address
                    value: float,
                    unit: str="ether",
                    gas: float,
+                   max_retries: int=3,
                    ) -> TxReceipt:
         """ Send ether of `value` in `unit` to `to`.
         """
 
         log.info(f"sending {value} {unit} to {to}")
-        nonce = self._web3.eth.get_transaction_count(self._acct.address)
-        to = self._web3.to_checksum_address(to)
+        nonce = self.web3.eth.get_transaction_count(self.acct.address)
+        to = self.web3.to_checksum_address(to)
         tx = {
             "nonce": nonce,
             "to": to,
-            "value": self._web3.to_wei(value, unit),
+            "value": self.web3.to_wei(value, unit),
             "gas": int(gas),
             "gasPrice": self.eth.gas_price,
         }
-        return self._sign_and_send(tx)
+        return self._sign_and_send(tx, max_retries=max_retries)
 
     def get_abi(self, addr: str) -> list:
         """ Get abi from contract address.
         """
-        return self._scan.get(module="contract", action="getabi", address=addr)
+        return self.scan.get(module="contract", action="getabi", address=addr)
 
     @staticmethod
     def connect_to_http_provider(provider: str, chain: Chain) -> Web3:

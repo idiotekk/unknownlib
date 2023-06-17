@@ -16,6 +16,7 @@ w3 = FastW3()
 os.environ["INFURA_API_KEY"] = _fectch_key("infura_api_key.json")
 w3.init_web3(provider="infura", chain=Chain.ETHEREUM)
 w3.init_ens(provider="infura", chain=Chain.ETHEREUM)
+w3.init_scan(chain=Chain.ETHEREUM)
 priv_key = _fectch_key("test_private_key.json") # 0x4cb32d187373a8a5B8B976923227d648e33e4d4a
 w3.init_acct(private_key=priv_key)
 friend_addr = "0xE5d4924413ae59AE717358526bbe11BB4A5D76b9"
