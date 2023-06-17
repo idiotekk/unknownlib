@@ -15,7 +15,7 @@ class Chain(Enum):
     OPTIMISM = 10
     POLYGON = 137
     AVALANCHE = 43114
-    ARBITRUM = 42170
+    ARBITRUM = 42161
     SEPOLIA = 11155111
 
     def __eq__(self, __value: object) -> bool:

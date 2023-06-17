@@ -11,63 +11,31 @@ from web3.contract import Contract
 from web3.contract.contract import ContractFunction
 from web3.datastructures import AttributeDict
 from web3.types import TxReceipt
-from web3.eth.eth import Eth
 from eth_account import Account
 from ens import ENS
-from typing import Optional, Dict, List, Callable, Any, Union
+from typing import Optional, Dict, List, Any, Union
 from functools import cache
 
 from .enums import Chain, ERC20
+from .mktdata import PriceFeed
 from .. import log
-from ..io import dump_json
 
 
-class FastW3:
+__all__ = [
+    "FastW3",
+]
+
+
+class FastW3(PriceFeed):
     """ A class that combines web3, ens and account.
     """
 
-    _web3: Web3
-    _chain: Chain
     _scan: Etherscan
     _ens: ENS
     _acct: Account
-    _contracts: Dict[str, Contract]
-    
-    def __init__(self) -> None:
-        self._contracts = {}
-
-    def init_web3(self,
-                  *,
-                  ipc_path: Optional[str]=None,
-                  http_url: Optional[str]=None,
-                  provider: Optional[str]=None,
-                  chain: Optional[Chain]=None
-                  ):
-        self._web3 = self._connect_to_web3(
-            ipc_path=ipc_path, http_url=http_url, provider=provider, chain=chain)
-        self._chain = chain
     
     def init_scan(self, chain: Chain):
         self._scan = Etherscan(chain)
-
-    def _connect_to_web3(self,
-                  *,
-                  ipc_path: Optional[str]=None,
-                  http_url: Optional[str]=None,
-                  provider: Optional[str]=None,
-                  chain: Optional[Chain]=None
-                  ) -> Web3:
-        from web3 import Web3
-        if ipc_path is not None:
-            _web3 = Web3(Web3.IPCProvider(ipc_path))
-        elif http_url is not None:
-            _web3 = Web3(Web3.HTTProvider(http_url))
-        elif provider is not None and chain is not None:
-            _web3 = self.connect_to_http_provider(provider=provider, chain=chain)
-        else:
-            raise ValueError("set ipc_path, http_url or (provider, chain)")
-        assert _web3.is_connected(), "Web3 is not connected"
-        return _web3
 
     def init_acct(self,
                   *,
@@ -77,14 +45,11 @@ class FastW3:
     
     def init_ens(self, **kw):
         if kw:
-            _web3 = self._connect_to_web3(**kw)
+            _web3 = self.connect_to_web3(**kw)
         else:
             _web3 = self.web3
+        assert _web3.eth.chain_id == 1, f"ens is only supported on {Chain(1)}, got {Chain(_web3.eth.chain_id)}"
         self._ens = ENS.from_web3(_web3)
-    
-    @property
-    def web3(self) -> Web3:
-        return self._web3
     
     @property
     def acct(self) -> Account:
@@ -93,30 +58,10 @@ class FastW3:
     @property
     def ens(self) -> ENS:
         return self._ens
-    
-    @property
-    def eth(self) -> Eth:
-        return self.web3.eth
-
-    @property
-    def chain(self) -> Chain:
-        return self._chain
 
     @property
     def scan(self) -> Etherscan:
         return self._scan
-
-    def contract(self, label_or_token: Union[str, ERC20]) -> Contract:
-        """ Fetch contract by label or token.
-        """
-        if isinstance(label_or_token, ERC20):
-            label = label_or_token.name
-        else:
-            assert isinstance(label_or_token, str)
-            label = label_or_token
-        if label not in self._contracts:
-            raise ValueError(f"{label} is not found; existing contracts: {list(self._contracts.keys())}")
-        return self._contracts[label]
 
     def get_block_number(self,
                          *,
@@ -125,9 +70,16 @@ class FastW3:
         If timestamp is not specified, get the latest block number.
         """
         if timestamp is not None:
-            return self.scan.get_block_number_by_timestamp(int(timestamp.value / 1e9))
+            return self.scan.get_block_number_by_timestamp(int(self.to_utc(timestamp).value / 1e9))
         else:
             return self.web3.eth.get_block_number()
+    
+    @staticmethod
+    def to_utc(t: pd.Timestamp) -> pd.Timestamp:
+        if t.tzinfo is not None:
+            return t.tz_convert("UTC")
+        else:
+            raise ValueError("can't convert tz-naive timetstamp to UTC!")
 
     def get_block_time(self,
                        *,
@@ -136,68 +88,6 @@ class FastW3:
         return pd.to_datetime(
             self.web3.eth.get_block(block_number).timestamp * 1e9,
             utc=True).tz_convert(tz)
-
-    def init_contract(self,
-                      *,
-                      addr: str,
-                      abi: Optional[list]=None,
-                      impl_addr: Optional[str]=None,
-                      label: str,
-                      ):
-        """
-        Directly return the contract is already created and found by `label` in self._contracts.
-        Otherwise, create a Contract from addr and abi/impl_addr.
-        
-        Parameters
-        ----------
-        addr : str
-            Contract address.
-        abi : list
-            Contract ABI.
-        impl_addr : str | None
-            Implementation address.
-            Note: must set either `abi` or `impl_addr` if `addr` is a proxy, otherwise ABI is not right.
-        label : str
-            If set, the contract will be cached in self._contracts.
-        """
-        # check existing contracts
-        assert not label in self._contracts, f"contract {label} is already initialized"
-        addr = self.web3.to_checksum_address(addr)
-        if abi is None:
-            if impl_addr is None:
-                impl_addr = addr
-            log.info(f"addr: {addr}\nimpl addr: {impl_addr}")
-            abi = self.get_abi(impl_addr)
-        contract = self.web3.eth.contract(address=addr, abi=abi)
-        self.add_contract(contract, label=label)
-
-    def add_contract(self, c: Contract, *, label: str):
-        self._contracts[label] = c
-        log.info(f"contract cached as '{label}'")
-
-    def init_erc20(self, token_or_token_name: Union[ERC20, str]):
-        if isinstance(token_or_token_name, ERC20):
-            token = token_or_token_name
-        else:
-            token = ERC20[token_or_token_name]
-        if token.name in self._contracts: # don't init again # TODO: check value
-            return
-        else:
-            self.init_contract(addr=token.addr, abi=token.abi, label=token.name)
-
-    @cache
-    def _decimals(self, token: ERC20) -> int:
-        return self.contract(token.name).functions.decimals().call()
-
-    def balance_of(self, *, token: ERC20, addr: Optional[str]=None) -> int:
-        """ Get the balance of an ERC20 token.
-        """
-        self.init_erc20(token.name)
-        addr = addr or self.acct.address
-        balance = self.contract(token.name).functions.balanceOf(self.acct.address).call()
-        decimals = self._decimals(token)
-        log.info(f"address {addr} balance of {token} = {balance} / 10e{decimals} = {balance/(10**decimals)}")
-        return balance
 
     def call(self,
              func: ContractFunction,
@@ -288,37 +178,6 @@ class FastW3:
         """
         return self.scan.get(module="contract", action="getabi", address=addr)
 
-    @staticmethod
-    def connect_to_http_provider(provider: str, chain: Chain) -> Web3:
-
-        if provider == "infura":
-            url_base_map = {
-                Chain.ETHEREUM: "https://mainnet.infura.io/v3",
-                Chain.GOERLI: "https://goerli.infura.io/v3",
-                Chain.SEPOLIA: "https://serpolia.infura.io/v3",
-                Chain.AVALANCHE: "https://avalanche-mainnet.infura.io/v3",
-                Chain.ARBITRUM: "https://arbitrum-mainnet.infura.io/v3",
-                Chain.OPTIMISM: "https://optimism-mainnet.infura.io/v3",
-                Chain.POLYGON: "https://polygon-mainnet.infura.io/v3",
-            }
-            url_base = url_base_map[chain]
-            api_key = os.environ["INFURA_API_KEY"]
-            url = f"{url_base}/{api_key}"
-            log.info(f"connecting to: {url}")
-            w3 = Web3(Web3.HTTPProvider(url))
-            assert w3.is_connected()
-            return w3
-        else:
-            NotImplementedError(f"not implemented provider: {provider}")
-
-    @staticmethod
-    def get_json_from_url(url: str) -> object:
-        """ GET response from a url as json.
-        """
-        log.info(f"requesting from {url}")
-        response = requests.get(url)
-        response_json = response.json()
-        return response_json
 
     def get_event_logs(self,
                        *,
@@ -363,5 +222,5 @@ class FastW3:
         return processed_log
 
     @staticmethod
-    def to_json(obj):
+    def to_json(obj: Dict) -> Dict:
         return json.loads(Web3.to_json(obj))

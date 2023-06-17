@@ -3,6 +3,10 @@ from .enums import Chain
 import requests
 import time
 
+__all__ = [
+    "Etherscan"
+]
+
 
 class ResponseParser:
     @staticmethod
