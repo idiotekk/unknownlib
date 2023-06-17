@@ -100,7 +100,7 @@ class Web3Connector:
         
 class ContractBook(Web3Connector):
 
-    _contracts: Dict[str, Contract]
+    _contracts: Dict[str, Contract] = {}
 
     def contract(self, label_or_token: Union[str, ERC20]) -> Contract:
         """ Fetch contract by label or token.
@@ -121,7 +121,7 @@ class ContractBook(Web3Connector):
                       abi: Optional[list]=None,
                       impl_addr: Optional[str]=None,
                       label: str,
-                      exist_ok: bool=False,
+                      on_existing: str="skip",
                       ):
         """
         Directly return the contract is already created and found by `label` in self._contracts.
@@ -139,13 +139,17 @@ class ContractBook(Web3Connector):
         label : str
             If set, the contract will be cached in self._contracts.
         """
-        if not hasattr(self, "_contract"):
-            self._contracts = {}
         if label in self._contracts:
-            if exist_ok:
+            msg = f"contract {label} is already initialized"
+            if on_existing == "skip":
+                log.info(msg)
                 return
+            elif on_existing == "raise":
+                raise ValueError(msg)
+            elif on_existing == "override":
+                log.info(f"{msg}, will override")
             else:
-                raise ValueError(f"contract {label} is already initialized")
+                raise ValueError(on_existing)
         if contract is not None:
             self._contracts[label] = contract
         else:
@@ -165,7 +169,7 @@ class ContractBook(Web3Connector):
             token = token_or_token_name
         else:
             token = ERC20[token_or_token_name]
-        self.init_contract(addr=token.addr, abi=token.abi, label=token.name, exist_ok=True)
+        self.init_contract(addr=token.addr, abi=token.abi, label=token.name, on_existing="skip")
 
     @cache
     def get_abi(addr: str) -> str:

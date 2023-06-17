@@ -34,12 +34,12 @@ class PriceFeed(ContractBook):
         self.init_contract(
             addr=self._price_feed_addr_book[self._chain][token],
             abi=chainlink_price_feed_abi,
-            label=self.__price_feed_label(token))
+            label=self._price_feed_label(token),
+            on_existing="skip")
     
     @cache
     def _price_feed_contract(self, token: ERC20) -> Contract:
-        if token not in self._contracts:
-            self._init_price_feed(token)
+        self._init_price_feed(token)
         return self.contract(self.__price_feed_label(token))
 
     @cache
