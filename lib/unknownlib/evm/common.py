@@ -198,7 +198,7 @@ class Addr:
         if isinstance(value, Addr):
             self.value == value
         elif isinstance(value, str) and self.is_valid(value):
-            self._value = Web3.to_checksum_address(value)
+            self._value = self.to_checksum_address(value)
         else:
             raise ValueError(f"invalid address {value}")
 
@@ -206,6 +206,11 @@ class Addr:
     def is_valid(value: str) -> bool:
         pattern = "^0x[0-9A-Fa-f]{40}$"
         return re.match(pattern, value) is not None
+
+    @staticmethod
+    @cache
+    def to_checksum_address(value):
+        return Web3.to_checksum_address(value)
 
     @property
     def value(self):
