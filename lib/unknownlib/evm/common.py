@@ -1,7 +1,8 @@
 import os
+import re
 import requests
 import pandas as pd
-from typing import Optional, Union, Dict
+from typing import Optional, Union, Dict, Self
 from functools import cache
 from web3 import Web3
 from web3.eth.eth import Eth
@@ -187,3 +188,36 @@ class ContractBook(Web3Connector):
     @cache
     def get_decimals(self, token: ERC20) -> int:
         return self.contract(token).functions["decimals"]().call()
+
+
+class Addr:
+
+    value: str
+
+    def __init__(self, value: Union[str, Self]) -> None:
+        if isinstance(value, Addr):
+            self.value == value
+        elif isinstance(value, str) and self.is_valid(value):
+            self._value = Web3.to_checksum_address(value)
+        else:
+            raise ValueError(f"invalid address {value}")
+
+    @staticmethod
+    def is_valid(value: str) -> bool:
+        pattern = "^0x[0-9A-Fa-f]{40}$"
+        return re.match(pattern, value) is not None
+
+    @property
+    def value(self):
+        return self._value
+
+    def __eq__(self, __value: object) -> bool:
+        return self.value == Addr(__value).value
+
+    def __hash__(self) -> int:
+        return self.value.__hash__()
+
+    def to_topic(self) -> str:
+        """ Convert to event topic. TODO: better way than str.replace?
+        """
+        return self.value.replace("0x", "0x" + "0" * 24)
