@@ -19,6 +19,8 @@ def fetch_range(*,
                 time_range: Tuple[pd.Timestamp, pd.Timestamp]) -> pd.DataFrame:
     
     start_time, end_time = time_range
+    if end_time <= start_time:
+        raise ValueError(f"end time {end_time} <= start time {start_time}")
     from_block = fw.scan.get_block_number_by_timestamp(to_int(start_time, "s"))
     to_block = fw.scan.get_block_number_by_timestamp(to_int(end_time, "s")) - 1
     log.info(f"({start_time}, {end_time}) -> blocks({from_block}, {to_block}), {to_block-from_block+1} blocks in total")
