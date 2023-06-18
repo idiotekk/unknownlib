@@ -1,12 +1,13 @@
 import os
 import re
 import requests
-import pandas as pd
+
 from typing import Optional, Union, Dict, Self
 from functools import cache
 from web3 import Web3
 from web3.eth.eth import Eth
 from web3.contract.contract import Contract
+
 from .enums import Chain, ERC20
 from . import log
 
@@ -14,16 +15,8 @@ from . import log
 __all__ = [
     "Web3Connector",
     "ContractBook",
+    "Addr",
 ]
-
-
-def get_json_from_url(url: str) -> object:
-    """ GET response from a url as json.
-    """
-    log.info(f"requesting from {url}")
-    response = requests.get(url)
-    response_json = response.json()
-    return response_json
 
 
 class Web3Connector:
@@ -192,7 +185,7 @@ class ContractBook(Web3Connector):
 
 class Addr:
 
-    value: str
+    value: str # checksum address
 
     def __init__(self, value: Union[str, Self]) -> None:
         if isinstance(value, Addr):
