@@ -180,7 +180,7 @@ class ContractBook(Web3Connector):
         """
         self.init_erc20(token.name)
         balance = self.contract(token.name).functions.balanceOf(self.acct.address).call()
-        decimals = self._decimals(token)
+        decimals = self.get_decimals(token)
         log.info(f"address {addr} balance of {token} = {balance} / 10e{decimals} = {balance/(10**decimals)}")
         return balance
 

@@ -35,7 +35,7 @@ class TestFastW3Methods(unittest.TestCase):
         # check balance of coin
         token = ERC20["GOERLI_USDC"]
         w3.init_erc20(token)
-        balance_ = w3.balance_of(token=token, addr=w3.acct.address)
+        balance_ = w3.get_balance_of(token=token, addr=w3.acct.address)
         log.info(f"balance of {token} = {balance_}")
 
         # change allowance
