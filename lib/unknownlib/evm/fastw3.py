@@ -1,9 +1,4 @@
-import os
-import json
-import requests
 import pandas as pd
-from pathlib import Path
-from web3 import Web3
 from .etherscan import Etherscan
 
 # for type hints
@@ -13,11 +8,11 @@ from web3.datastructures import AttributeDict
 from web3.types import TxReceipt
 from eth_account import Account
 from ens import ENS
-from typing import Optional, Dict, List, Any, Union
-from functools import cache
+from typing import Optional, Dict, List, Any
 
 from .enums import Chain, ERC20
 from .mktdata import PriceFeed
+from .timestamp import utcnow, to_int
 from .. import log
 
 
@@ -69,25 +64,21 @@ class FastW3(PriceFeed):
         """ Get the block number of a timestamp.
         If timestamp is not specified, get the latest block number.
         """
-        if timestamp is not None:
-            return self.scan.get_block_number_by_timestamp(int(self.to_utc(timestamp).value / 1e9))
-        else:
-            return self.web3.eth.get_block_number()
-    
-    @staticmethod
-    def to_utc(t: pd.Timestamp) -> pd.Timestamp:
-        if t.tzinfo is not None:
-            return t.tz_convert("UTC")
-        else:
-            raise ValueError("can't convert tz-naive timetstamp to UTC!")
+        if timestamp is None:
+            timestamp = utcnow()
+        n = self.scan.get_block_number_by_timestamp(to_int(timestamp, unit="s"))
+        log.debug(f"block number as of {timestamp} = {n}")
+        return n
 
     def get_block_time(self,
                        *,
                        block_number: int,
                        tz: str="US/Eastern") -> pd.Timestamp:
-        return pd.to_datetime(
+        dt = pd.to_datetime(
             self.web3.eth.get_block(block_number).timestamp * 1e9,
             utc=True).tz_convert(tz)
+        log.debug(f"block number {block_number} timestamp = {dt}")
+        return dt
 
     def call(self,
              func: ContractFunction,
@@ -178,7 +169,6 @@ class FastW3(PriceFeed):
         """
         return self.scan.get(module="contract", action="getabi", address=addr)
 
-
     def get_event_logs(self,
                        *,
                        contract: str,
@@ -220,7 +210,3 @@ class FastW3(PriceFeed):
 
         processed_log = [dict(c.events[event_name]().process_log(raw_log)) for raw_log in raw_logs]
         return processed_log
-
-    @staticmethod
-    def to_json(obj: Dict) -> Dict:
-        return json.loads(Web3.to_json(obj))

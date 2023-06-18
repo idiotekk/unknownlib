@@ -2,6 +2,8 @@ import os
 from .enums import Chain
 import requests
 import time
+from . import log
+
 
 __all__ = [
     "Etherscan"
@@ -49,9 +51,10 @@ class Etherscan:
                 r = requests.get(url, headers={"User-Agent": ""})
                 return ResponseParser.parse(r)
             except Exception as e:
+                print(f"{url} failed with error:\n{e}")
                 msg = "Max rate limit reached"
                 if msg in str(e):
-                    print(f"{msg}, waiting for {self._retry_wait_seconds} seconds...")
+                    print(f"waiting for {self._retry_wait_seconds} seconds...")
                     time.sleep(self._retry_wait_seconds)
                 else:
                     raise e

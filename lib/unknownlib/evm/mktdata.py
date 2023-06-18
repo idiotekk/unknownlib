@@ -40,7 +40,7 @@ class PriceFeed(ContractBook):
     @cache
     def _price_feed_contract(self, token: ERC20) -> Contract:
         self._init_price_feed(token)
-        return self.contract(self.__price_feed_label(token))
+        return self.contract(self._price_feed_label(token))
 
     @cache
     def _price_feed_label(self, token: ERC20) -> str:
@@ -48,8 +48,8 @@ class PriceFeed(ContractBook):
             
     def get_latest_price(self, token: ERC20) -> float:
         price_raw = self._price_feed_contract(token).functions["latestAnswer"]().call()
-        return price_raw / (10**self._decimals(token))
+        return price_raw / (10**self.__decimals(token))
 
     @cache
-    def _decimals(self, token: ERC20) -> int:
-        return self.contract(token).functions["decimals"]().call()
+    def __decimals(self, token: ERC20) -> int:
+        return self._price_feed_contract(token).functions["decimals"]().call()

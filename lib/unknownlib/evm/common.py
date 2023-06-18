@@ -1,5 +1,6 @@
 import os
 import requests
+import pandas as pd
 from typing import Optional, Union, Dict
 from functools import cache
 from web3 import Web3
@@ -10,8 +11,8 @@ from . import log
 
 
 __all__ = [
-    "connect_to_http_provider",
-    "connect_to_web3",
+    "Web3Connector",
+    "ContractBook",
 ]
 
 
@@ -22,7 +23,6 @@ def get_json_from_url(url: str) -> object:
     response = requests.get(url)
     response_json = response.json()
     return response_json
-
 
 
 class Web3Connector:
@@ -44,8 +44,8 @@ class Web3Connector:
 
     @staticmethod
     def connect_to_http_provider(*,
-                                provider: str,
-                                chain: Chain) -> Web3:
+                                 provider: str,
+                                 chain: Chain) -> Web3:
 
         if provider == "infura":
             url_base_map = {
@@ -175,7 +175,7 @@ class ContractBook(Web3Connector):
     def get_abi(addr: str) -> str:
         raise NotImplementedError()
 
-    def balance_of(self, *, token: ERC20, addr: str) -> int:
+    def get_balance_of(self, *, token: ERC20, addr: str) -> int:
         """ Get the balance of an ERC20 token of address.
         """
         self.init_erc20(token.name)
@@ -183,3 +183,7 @@ class ContractBook(Web3Connector):
         decimals = self._decimals(token)
         log.info(f"address {addr} balance of {token} = {balance} / 10e{decimals} = {balance/(10**decimals)}")
         return balance
+
+    @cache
+    def get_decimals(self, token: ERC20) -> int:
+        return self.contract(token).functions["decimals"]().call()

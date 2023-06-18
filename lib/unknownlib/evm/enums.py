@@ -8,14 +8,15 @@ __all__ = [
     "ERC20",
 ]
 
+
 class Chain(Enum):
     
     ETHEREUM = 1
     GOERLI = 5
     OPTIMISM = 10
     POLYGON = 137
-    AVALANCHE = 43114
     ARBITRUM = 42161
+    AVALANCHE = 43114
     SEPOLIA = 11155111
 
     def __eq__(self, __value: object) -> bool:
