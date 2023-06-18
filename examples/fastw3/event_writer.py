@@ -1,6 +1,5 @@
 """
-This example fetches trade prices from uniswap v3 USDC pool,
-then plot the prices in an interactive chart.
+This example fetches logs of an event from a contract and write to sql database.
 """
 import os
 import pandas as pd
