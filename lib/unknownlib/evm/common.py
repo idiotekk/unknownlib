@@ -185,11 +185,11 @@ class ContractBook(Web3Connector):
 
 class Addr:
 
-    value: str # checksum address
+    _value: str # checksum address
 
     def __init__(self, value: Union[str, Self]) -> None:
         if isinstance(value, Addr):
-            self.value == value
+            self._value = value
         elif isinstance(value, str) and self.is_valid(value):
             self._value = self.to_checksum_address(value)
         else:
@@ -209,7 +209,7 @@ class Addr:
     def value(self):
         return self._value
 
-    def __eq__(self, __value: object) -> bool:
+    def __eq__(self, __value: Union[str, Self]) -> bool:
         return self.value == Addr(__value).value
 
     def __hash__(self) -> int:
