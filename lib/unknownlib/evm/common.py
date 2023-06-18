@@ -173,7 +173,7 @@ class ContractBook(Web3Connector):
         """ Get the balance of an ERC20 token of address.
         """
         self.init_erc20(token.name)
-        balance = self.contract(token.name).functions.balanceOf(self.acct.address).call()
+        balance = self.contract(token.name).functions.balanceOf(addr).call()
         decimals = self.get_decimals(token)
         log.info(f"address {addr} balance of {token} = {balance} / 10e{decimals} = {balance/(10**decimals)}")
         return balance
