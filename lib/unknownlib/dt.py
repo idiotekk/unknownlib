@@ -13,7 +13,7 @@ def sleep(t_: str):
     Parameters
     ----------
     t_ : str
-        Pareable by pd.Timedelta.
+        Parsable by pd.Timedelta.
     """
     s = pd.Timedelta(t_).total_seconds()
     log.info(f"sleeping for {t_} = {s} seconds")

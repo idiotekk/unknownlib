@@ -118,7 +118,7 @@ class ContractBook(Web3Connector):
                       if_exists: str="skip",
                       ):
         """
-        Directly return the contract is already created and found by `label` in self._contracts.
+        Directly return if the contract is already created and found by `label` in self._contracts.
         Otherwise, create a Contract from addr and abi/impl_addr.
         
         Parameters
