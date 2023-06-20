@@ -3,9 +3,11 @@ from typing import Union, Self
 from functools import cache
 from web3 import Web3
 
+
 __all__ = [
     "Addr",
 ]
+
 
 class Addr:
 

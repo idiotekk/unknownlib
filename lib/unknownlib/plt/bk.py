@@ -9,7 +9,7 @@ from pandas.api.types import is_string_dtype
 output_notebook(INLINE)
 
 
-def _colors(n):
+def _colors(n: int) -> List[str]:
     default_colors = ["black", "red", "green", "blue", "cyan", "magenta"]
     assert n <= len(default_colors)
     return default_colors[:n]

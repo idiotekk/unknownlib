@@ -46,7 +46,7 @@ class Etherscan:
         url = self._base_url + "&".join([f"{k}={v}" for k, v in kw.items()])
 
         retries = 0
-        while True and retries < self._max_retries:
+        while retries < self._max_retries:
             try:
                 r = requests.get(url, headers={"User-Agent": ""})
                 return ResponseParser.parse(r)
