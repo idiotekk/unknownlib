@@ -173,7 +173,7 @@ class ContractBook(Web3Connector):
         """ Get the balance of an ERC20 token of address.
         """
         self.init_erc20(token.name)
-        balance = self.contract(token.name).functions.balanceOf(self.acct.address).call()
+        balance = self.contract(token.name).functions.balanceOf(addr).call()
         decimals = self.get_decimals(token)
         log.info(f"address {addr} balance of {token} = {balance} / 10e{decimals} = {balance/(10**decimals)}")
         return balance
@@ -189,7 +189,7 @@ class Addr:
 
     def __init__(self, value: Union[str, Self]) -> None:
         if isinstance(value, Addr):
-            self._value = value
+            self._value = value.value
         elif isinstance(value, str) and self.is_valid(value):
             self._value = self.to_checksum_address(value)
         else:
@@ -202,11 +202,11 @@ class Addr:
 
     @staticmethod
     @cache
-    def to_checksum_address(value):
+    def to_checksum_address(value) -> str:
         return Web3.to_checksum_address(value)
 
     @property
-    def value(self):
+    def value(self) -> str:
         return self._value
 
     def __eq__(self, __value: Union[str, Self]) -> bool:

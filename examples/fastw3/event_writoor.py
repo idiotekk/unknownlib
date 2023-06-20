@@ -72,8 +72,8 @@ if __name__ == "__main__":
     sdate = 20230601
     edate = 20230615
 
-    fw.init_web3(provider="infura", chain=Chain.ETHEREUM)
-    fw.init_scan(chain=Chain.ETHEREUM)
+    fw.init_web3(provider="infura", chain=chain)
+    fw.init_scan(chain=chain)
     fw.init_contract(addr=contract_addr, label=contract_name)
     table_name = f"{contract_name}_{event_name}"
     sql = SQLConnector()
