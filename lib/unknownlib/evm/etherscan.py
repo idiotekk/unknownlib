@@ -1,5 +1,5 @@
 import os
-from .enums import Chain
+from .core.enums import Chain
 import requests
 import time
 from . import log

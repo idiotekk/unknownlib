@@ -1,21 +1,24 @@
+"""
+Base classes of evm lib.
+This module doesn't deal with any specific contract or address, e.g.
+TODO: need better name than "base.py".
+"""
 import os
-import re
-import requests
 
-from typing import Optional, Union, Dict, Self
+from typing import Optional, Dict, Any
 from functools import cache
 from web3 import Web3
 from web3.eth.eth import Eth
 from web3.contract.contract import Contract
 
-from .enums import Chain, ERC20
-from . import log
+from .enums import Chain, ERC20, ActionIfItemExists
+from .. import log
 
 
 __all__ = [
     "Web3Connector",
     "ContractBook",
-    "Addr",
+    "ERC20ContractBook",
 ]
 
 
@@ -95,18 +98,15 @@ class Web3Connector:
 class ContractBook(Web3Connector):
 
     _contracts: Dict[str, Contract] = {}
+    _supported_key_types: tuple = (ERC20, str)
 
-    def contract(self, label_or_token: Union[str, ERC20]) -> Contract:
+    def contract(self, key: Any) -> Contract:
         """ Fetch contract by label or token.
         """
-        if isinstance(label_or_token, ERC20):
-            label = label_or_token.name
-        else:
-            assert isinstance(label_or_token, str)
-            label = label_or_token
-        if not hasattr(self, "_contracts") or label not in self._contracts:
-            raise ValueError(f"{label} is not found.")
-        return self._contracts[label]
+        assert isinstance(key, self._supported_key_types), f"only supporting {self._supported_key_types}, got {type(key)}"
+        if key not in self._contracts:
+            raise ValueError(f"{key} is not found.")
+        return self._contracts[key]
 
     def init_contract(self,
                       *,
@@ -114,8 +114,8 @@ class ContractBook(Web3Connector):
                       addr: str=None,
                       abi: Optional[list]=None,
                       impl_addr: Optional[str]=None,
-                      label: str,
-                      on_existing: str="skip",
+                      key: Any,
+                      if_exists: str="skip",
                       ):
         """
         Directly return the contract is already created and found by `label` in self._contracts.
@@ -130,22 +130,21 @@ class ContractBook(Web3Connector):
         impl_addr : str | None
             Implementation address.
             Note: must set either `abi` or `impl_addr` if `addr` is a proxy, otherwise ABI is not right.
-        label : str
-            If set, the contract will be cached in self._contracts.
         """
-        if label in self._contracts:
-            msg = f"contract {label} is already initialized"
-            if on_existing == "skip":
+        if key in self._contracts:
+            action_if_exists = ActionIfItemExists.from_str(if_exists)
+            msg = f"contract {key} is already initialized"
+            if action_if_exists == ActionIfItemExists.SKIP:
                 log.info(msg)
                 return
-            elif on_existing == "raise":
+            elif action_if_exists == ActionIfItemExists.RAISE:
                 raise ValueError(msg)
-            elif on_existing == "override":
+            elif action_if_exists == ActionIfItemExists.OVERRIDE:
                 log.info(f"{msg}, will override")
             else:
-                raise ValueError(on_existing)
+                raise ValueError(action_if_exists)
         if contract is not None:
-            self._contracts[label] = contract
+            self._contracts[key] = contract
         else:
             addr = self.web3.to_checksum_address(addr)
             if abi is None:
@@ -154,26 +153,25 @@ class ContractBook(Web3Connector):
                 log.info(f"addr: {addr}\nimpl addr: {impl_addr}")
                 abi = self.get_abi(impl_addr)
             contract = self.web3.eth.contract(address=addr, abi=abi)
-            self._contracts[label] = contract
-
-    def init_erc20(self, token_or_token_name: Union[ERC20, str]):
-        """ Add ERC20 to the contract book.
-        """
-        if isinstance(token_or_token_name, ERC20):
-            token = token_or_token_name
-        else:
-            token = ERC20[token_or_token_name]
-        self.init_contract(addr=token.addr, abi=token.abi, label=token.name, on_existing="skip")
+            self._contracts[key] = contract
 
     @cache
     def get_abi(addr: str) -> str:
         raise NotImplementedError()
 
+
+class ERC20ContractBook(ContractBook):
+
+    def init_erc20(self, token: ERC20):
+        """ Add ERC20 to the contract book.
+        """
+        self.init_contract(addr=token.addr, abi=token.abi, key=token, if_exists="skip")
+
     def get_balance_of(self, *, token: ERC20, addr: str) -> int:
         """ Get the balance of an ERC20 token of address.
         """
-        self.init_erc20(token.name)
-        balance = self.contract(token.name).functions.balanceOf(addr).call()
+        self.init_erc20(token)
+        balance = self.contract(token).functions.balanceOf(addr).call()
         decimals = self.get_decimals(token)
         log.info(f"address {addr} balance of {token} = {balance} / 10e{decimals} = {balance/(10**decimals)}")
         return balance
@@ -181,41 +179,3 @@ class ContractBook(Web3Connector):
     @cache
     def get_decimals(self, token: ERC20) -> int:
         return self.contract(token).functions["decimals"]().call()
-
-
-class Addr:
-
-    _value: str # checksum address
-
-    def __init__(self, value: Union[str, Self]) -> None:
-        if isinstance(value, Addr):
-            self._value = value.value
-        elif isinstance(value, str) and self.is_valid(value):
-            self._value = self.to_checksum_address(value)
-        else:
-            raise ValueError(f"invalid address {value}")
-
-    @staticmethod
-    def is_valid(value: str) -> bool:
-        pattern = "^0x[0-9A-Fa-f]{40}$"
-        return re.match(pattern, value) is not None
-
-    @staticmethod
-    @cache
-    def to_checksum_address(value) -> str:
-        return Web3.to_checksum_address(value)
-
-    @property
-    def value(self) -> str:
-        return self._value
-
-    def __eq__(self, __value: Union[str, Self]) -> bool:
-        return self.value == Addr(__value).value
-
-    def __hash__(self) -> int:
-        return self.value.__hash__()
-
-    def to_topic(self) -> str:
-        """ Convert to event topic. TODO: better way than str.replace?
-        """
-        return self.value.replace("0x", "0x" + "0" * 24)

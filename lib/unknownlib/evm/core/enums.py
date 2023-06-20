@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Self
 from functools import cache
 import json
 
@@ -6,6 +7,7 @@ import json
 __all__ = [
     "Chain",
     "ERC20",
+    "ActionIfItemExists",
 ]
 
 
@@ -68,3 +70,18 @@ class ERC20(Enum):
     @property
     def addr(self):
         return self.value
+
+
+class ActionIfItemExists(Enum):
+    
+    SKIP = 0
+    RAISE = 1
+    OVERRIDE = 2
+
+    @classmethod
+    def from_str(cls, s: str) -> Self:
+        return cls[s.upper()]
+
+    def __eq__(self, __other: Self) -> bool:
+        assert isinstance(__other, self.__class__), f"cannot compare to non-{self.__class__} object, got type {type(__other)}"
+        return self.value == __other.value
