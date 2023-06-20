@@ -5,7 +5,7 @@ import random
 from pprint import pformat
 from pathlib import Path
 from unknownlib.evm.fastw3 import FastW3
-from unknownlib.evm.enums import Chain
+from unknownlib.evm.core import Chain
 from unknownlib.io import load_json
 from unknownlib import log
 
@@ -29,7 +29,7 @@ class TestFastW3Methods(unittest.TestCase):
         contract_name = "ENS public resolver"
         w3.init_contract(
             addr="0x231b0ee14048e9dccd1d247744d114a4eb5e8e63",
-            label=contract_name)
+            key=contract_name)
         logs = w3.get_event_logs(
             contract=contract_name,
             event_name="ContenthashChanged",

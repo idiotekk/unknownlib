@@ -5,7 +5,7 @@ import random
 from pprint import pformat
 from pathlib import Path
 from unknownlib.evm.fastw3 import FastW3
-from unknownlib.evm.enums import Chain, ERC20
+from unknownlib.evm.core import Chain, ERC20
 from unknownlib.io import load_json
 from unknownlib import log
 

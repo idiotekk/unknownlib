@@ -3,8 +3,8 @@ import sys
 import unittest
 import random
 from pathlib import Path
-from unknownlib.evm.fastw3 import FastW3, ERC20
-from unknownlib.evm.enums import Chain
+from unknownlib.evm.fastw3 import FastW3
+from unknownlib.evm.core import Chain, ERC20
 from unknownlib.io import load_json
 from unknownlib import log
 from unknownlib.dt import sleep

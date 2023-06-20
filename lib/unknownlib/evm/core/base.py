@@ -1,5 +1,7 @@
 """
 Base classes of evm lib.
+This module doesn't deal with any specific contract or address, e.g.
+TODO: need better name than "base.py".
 """
 import os
 
@@ -9,7 +11,7 @@ from web3 import Web3
 from web3.eth.eth import Eth
 from web3.contract.contract import Contract
 
-from ..enums import Chain, ERC20, ActionIfItemExists
+from .enums import Chain, ERC20, ActionIfItemExists
 from .. import log
 
 
@@ -168,8 +170,8 @@ class ERC20ContractBook(ContractBook):
     def get_balance_of(self, *, token: ERC20, addr: str) -> int:
         """ Get the balance of an ERC20 token of address.
         """
-        self.init_erc20(token.name)
-        balance = self.contract(token.name).functions.balanceOf(addr).call()
+        self.init_erc20(token)
+        balance = self.contract(token).functions.balanceOf(addr).call()
         decimals = self.get_decimals(token)
         log.info(f"address {addr} balance of {token} = {balance} / 10e{decimals} = {balance/(10**decimals)}")
         return balance

@@ -26,11 +26,11 @@ class Addr:
 
     @staticmethod
     @cache
-    def to_checksum_address(value):
+    def to_checksum_address(value) -> str:
         return Web3.to_checksum_address(value)
 
     @property
-    def value(self):
+    def value(self) -> str:
         return self._value
 
     def __eq__(self, __other: Union[str, Self]) -> bool:

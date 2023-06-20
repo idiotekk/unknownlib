@@ -1,9 +1,6 @@
-from web3 import Web3
-from .enums import Chain, ERC20
-from .common import ContractBook
 from web3.contract.contract import Contract
 from functools import cache
-from typing import Optional
+from .core import ContractBook, Chain, ERC20
 from . import log
 
 
@@ -34,8 +31,8 @@ class PriceFeed(ContractBook):
         self.init_contract(
             addr=self._price_feed_addr_book[self._chain][token],
             abi=chainlink_price_feed_abi,
-            label=self._price_feed_label(token),
-            on_existing="skip")
+            key=self._price_feed_label(token),
+            if_exists="skip")
     
     @cache
     def _price_feed_contract(self, token: ERC20) -> Contract:

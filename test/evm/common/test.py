@@ -1,7 +1,7 @@
 import os
 import sys
 import unittest
-from unknownlib.evm.common import Addr
+from unknownlib.evm.core import Addr
 
 class TestFastW3Methods(unittest.TestCase):
 
