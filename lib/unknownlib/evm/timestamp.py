@@ -11,6 +11,7 @@ def to_utc(t: pd.Timestamp) -> pd.Timestamp:
     else:
         raise ValueError("can't convert tz-naive timetstamp to UTC!")
 
+
 def to_int(t: pd.Timestamp, unit="ns") -> int:
     """ Convert timestamp to integer.
     `t` is required to be tz-aware.
