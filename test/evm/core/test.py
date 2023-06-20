@@ -11,6 +11,9 @@ class TestFastW3Methods(unittest.TestCase):
         self.assertRaises(ValueError, lambda: Addr(test_addr.value[:-2]))
         self.assertRaises(ValueError, lambda: Addr("000" + test_addr.value))
         self.assertRaises(ValueError, lambda: Addr(test_addr.value.replace("a", "z")))
+        self.assertTrue(test_addr, Addr(test_addr.value))
+        self.assertTrue(test_addr, Addr(test_addr.value.lower()))
+        self.assertTrue(hash(test_addr), hash(test_addr.value))
         self.assertTrue(len(test_addr.to_topic()) == 66)
 
 if __name__ == '__main__':
