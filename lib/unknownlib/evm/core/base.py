@@ -45,7 +45,7 @@ class Web3Connector:
                                  chain: Chain) -> Web3:
 
         if provider == "infura":
-            url_base_map = {
+            base_url_map = {
                 Chain.ETHEREUM: "https://mainnet.infura.io/v3",
                 Chain.GOERLI: "https://goerli.infura.io/v3",
                 Chain.SEPOLIA: "https://serpolia.infura.io/v3",
@@ -54,9 +54,9 @@ class Web3Connector:
                 Chain.OPTIMISM: "https://optimism-mainnet.infura.io/v3",
                 Chain.POLYGON: "https://polygon-mainnet.infura.io/v3",
             }
-            url_base = url_base_map[chain]
+            base_url = base_url_map[chain]
             api_key = os.environ["INFURA_API_KEY"]
-            url = f"{url_base}/{api_key}"
+            url = f"{base_url}/{api_key}"
             log.info(f"connecting to: {url}")
             w3 = Web3(Web3.HTTPProvider(url))
             assert w3.is_connected()
