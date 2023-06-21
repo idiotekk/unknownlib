@@ -52,12 +52,8 @@ class Etherscan:
                 return ResponseParser.parse(r)
             except Exception as e:
                 print(f"{url} failed with error:\n{e}")
-                msg = "Max rate limit reached"
-                if msg in str(e):
-                    print(f"waiting for {self._retry_wait_seconds} seconds...")
-                    time.sleep(self._retry_wait_seconds)
-                else:
-                    raise e
+                print(f"waiting for {self._retry_wait_seconds} seconds...")
+                time.sleep(self._retry_wait_seconds)
                 retries += 1
     
     def get_block_number_by_timestamp(self, timestamp: int) -> int:
