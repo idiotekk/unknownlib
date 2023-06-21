@@ -26,17 +26,20 @@ def fetch_range(*,
 
     raw_logs = []
     for event_name in event_names:
-        raw_logs = fw.get_event_logs(
+        raw_logs += fw.get_event_logs(
             contract=contract_name,
             event_name=event_name,
             from_block=from_block,
             to_block=to_block)
+    if len(raw_logs) == 0:
+        log.info(f"no log found; returning")
+        return None
 
     def _flatten_log(log_: dict) -> dict:
         """ Make log a single-layer dictionary by expanding "args". """
         return {
-            **{f"args_{k}": v for k, v in log_["args"].items()},
-            **{k: v.hex() if isinstance(v, HexBytes) else v for k, v in log_.items() if k != "args"}
+            **{f"args_{k}": v.hex() if isinstance(v, (HexBytes, bytes)) else v for k, v in log_["args"].items()},
+            **{k: v.hex() if isinstance(v, (HexBytes, bytes)) else v for k, v in log_.items() if k != "args"}
         }
 
     logs = [_flatten_log(_) for _ in raw_logs]
@@ -67,20 +70,20 @@ if __name__ == "__main__":
     chain = Chain.ETHEREUM
     contract_name = "milady"
     contract_addr = "0x12970E6868f88f6557B76120662c1B3E50A646bf"
-    event_name = "Transfer"
+    event_names = ["Transfer"]
     db_path = '/tmp/evm.db'
     sdate = 20230601
     edate = 20230615
 
     fw.init_web3(provider="infura", chain=chain)
     fw.init_scan(chain=chain)
-    fw.init_contract(addr=contract_addr, label=contract_name)
-    table_name = f"{contract_name}_{event_name}"
+    fw.init_contract(addr=contract_addr, key=contract_name)
+    table_name = f"{contract_name}_{'_'.join(event_names)}"
     sql = SQLConnector()
     sql.connect(db_path)
 
     for date in pd.date_range(str(sdate), str(edate), freq="1d"):
         date = int(date.strftime("%Y%m%d"))
         print(date)
-        df = fetch_one_date(date=date, event_names=[event_name], contract_name=contract_name)
+        df = fetch_one_date(date=date, event_names=event_names, contract_name=contract_name)
         sql.write(df, table_name=table_name, index=["blockNumber", "logIndex"])
