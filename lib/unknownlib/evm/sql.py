@@ -47,6 +47,6 @@ class SQLConnector:
         if b == "Y":
             self.con.execute(f"DROP TABLE {table_name}")
     
-    def table_exists(self, table_name: str):
+    def table_exists(self, table_name: str) -> bool:
         c = self.con.execute(f'''SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}' ''')
         return c.fetchone() is not None
