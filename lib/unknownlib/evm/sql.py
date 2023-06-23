@@ -8,9 +8,9 @@ class SQLConnector:
     
     _con: sqlite3.Connection
    
-    def connect(self, path, **kw):
+    def connect(self, path: str, **kw):
         self._path = path
-        self._con = sqlite3.connect(path)
+        self._con = sqlite3.connect(path, **kw)
 
     @property
     def con(self) -> sqlite3.Connection:
@@ -43,8 +43,8 @@ class SQLConnector:
         return pd.read_sql_query(query, self.con)
 
     def delete_table(self, table_name: str):
-        b = input(f"delete table {table_name}? (Y/N)")
-        if b == "Y":
+        should_delete = input(f"delete table {table_name}? (Y/N)")
+        if should_delete == "Y":
             self.con.execute(f"DROP TABLE {table_name}")
     
     def table_exists(self, table_name: str) -> bool:
