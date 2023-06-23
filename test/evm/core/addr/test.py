@@ -1,9 +1,9 @@
 import os
 import sys
 import unittest
-from unknownlib.evm.core import Addr
+from unknownlib.evm.core import *
 
-class TestFastW3Methods(unittest.TestCase):
+class TestAddrMethods(unittest.TestCase):
 
     def test_addr(self):
         test_addr = Addr("0x0938C63109801Ee4243a487aB84DFfA2Bba4589e")
