@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Self, List, Dict, Any
 from functools import cache
 import json
+from .types import check_type
 
 
 __all__ = [
@@ -83,5 +84,5 @@ class ActionIfItemExists(Enum):
         return cls[s.upper()]
 
     def __eq__(self, __other: Self) -> bool:
-        assert isinstance(__other, self.__class__), f"cannot compare to non-{self.__class__} object, got type {type(__other)}"
+        check_type(__other, self.__class__)
         return self.value == __other.value

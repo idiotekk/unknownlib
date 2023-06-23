@@ -12,6 +12,7 @@ from web3.eth.eth import Eth
 from web3.contract.contract import Contract
 
 from .enums import Chain, ERC20, ActionIfItemExists
+from .types import check_type
 from .. import log
 
 
@@ -62,7 +63,7 @@ class Web3Connector:
             assert w3.is_connected()
             return w3
         else:
-            NotImplementedError(f"not implemented provider: {provider}")
+            raise NotImplementedError(f"not implemented provider: {provider}")
             
     @staticmethod
     def connect_to_web3(*,
@@ -103,7 +104,7 @@ class ContractBook(Web3Connector):
     def contract(self, key: Any) -> Contract:
         """ Fetch contract by label or token.
         """
-        assert isinstance(key, self._supported_key_types), f"only supporting {self._supported_key_types}, got {type(key)}"
+        check_type(key, self._supported_key_types)
         if key not in self._contracts:
             raise ValueError(f"{key} is not found.")
         return self._contracts[key]
@@ -156,7 +157,7 @@ class ContractBook(Web3Connector):
             self._contracts[key] = contract
 
     @cache
-    def get_abi(addr: str) -> str:
+    def get_abi(self, addr: str) -> str:
         raise NotImplementedError()
 
 
