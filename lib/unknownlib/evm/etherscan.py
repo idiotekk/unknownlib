@@ -1,7 +1,8 @@
 import os
-from .core.enums import Chain
 import requests
 import time
+from typing import Any
+from .core.enums import Chain
 from . import log
 
 
@@ -13,7 +14,7 @@ __all__ = [
 class ResponseParser:
 
     @staticmethod
-    def parse(response: requests.Response):
+    def parse(response: requests.Response) -> Any:
         content = response.json()
         result = content["result"]
         if "status" in content.keys():
@@ -32,15 +33,23 @@ class Etherscan:
     _retry_wait_seconds: float = 1.001 # retry after this seconds
     _max_retries: int = 5
 
+    __api_key_env_var_map = {
+        Chain.ETHEREUM: "ETHERSCAN_API_KEY",
+        Chain.ARBITRUM: "ARBISCAN_API_KEY",
+        Chain.OPTIMISM: "OPTIMISTIC_SCAN_API_KEY",
+        Chain.BINANCE: "BSCSCAN_API_KEY",
+    }
+    __base_url_map = {
+        Chain.ETHEREUM: "https://api.etherscan.io/api?",
+        Chain.ARBITRUM: "https://api.arbiscan.io/api?",
+        Chain.OPTIMISM: "https://optimistic.etherscan.io/api?",
+        Chain.BINANCE: "https://api.bscscan.com/api?",
+    }
+
     def __init__(self, chain: Chain) -> None:
-        self._api_key = os.environ[{
-            Chain.ETHEREUM: "ETHERSCAN_API_KEY",
-            Chain.ARBITRUM: "ARBISCAN_API_KEY",
-        }[chain]]
-        self._base_url = {
-            Chain.ETHEREUM: "https://api.etherscan.io/api?",
-            Chain.ARBITRUM: "https://api.arbiscan.io/api?",
-        }[chain]
+        api_key_env_var = self.__api_key_env_var_map[chain]
+        self._api_key = os.environ[api_key_env_var]
+        self._base_url = self.__base_url_map[chain]
         
     def get(self, **kw):
         kw["apikey"] = self._api_key

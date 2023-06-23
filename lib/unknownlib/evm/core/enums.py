@@ -17,6 +17,7 @@ class Chain(Enum):
     ETHEREUM = 1
     GOERLI = 5
     OPTIMISM = 10
+    BINANCE = 56
     POLYGON = 137
     ARBITRUM = 42161
     AVALANCHE = 43114
