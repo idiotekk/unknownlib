@@ -11,7 +11,7 @@ from ens import ENS
 from typing import Optional, Dict, List, Any
 
 from .core import Chain, ERC20, ERC20ContractBook
-from .mktdata import PriceFeed
+from .mktdata import ChainLinkPriceFeed
 from .timestamp import utcnow, to_int
 from .. import log
 
@@ -21,7 +21,7 @@ __all__ = [
 ]
 
 
-class FastW3(ERC20ContractBook, PriceFeed):
+class FastW3(ERC20ContractBook, ChainLinkPriceFeed):
     """ A class that combines web3, ens and account.
     """
 

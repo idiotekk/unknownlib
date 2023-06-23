@@ -1,15 +1,22 @@
 from web3.contract.contract import Contract
 from functools import cache
+from abc import ABC, abstractmethod
 from .core import ContractBook, Chain, ERC20
 from . import log
 
 
 __all__ = [
-    "PriceFeed",
+    "ChainLinkPriceFeed",
 ]
 
+class LivePriceFeed(ABC):
 
-class PriceFeed(ContractBook):
+    @abstractmethod
+    def get_latest_price(self, token: ERC20):
+        pass
+
+
+class ChainLinkPriceFeed(ContractBook, LivePriceFeed):
     """ Chainlink price feed.
     Use get_latest_price method to get price.
     """
