@@ -15,7 +15,7 @@ __all__ = [
 ]
 
 
-def make_sure_parent_dir_exists(path: Union[str, Path]):
+def make_sure_parent_dir_exists(path: Union[str, Path]) -> Union[str, Path]:
     """ Create parent dir if not exists.
     """
     parent_dir = Path(path).parent
@@ -81,7 +81,7 @@ def collect_df(p: str, cores=1, filepath=False, **kw) -> pd.DataFrame:
     return df
 
 
-def load_json(f_: Union[Path, str]):
+def load_json(f_: Union[Path, str]) -> Any:
     import json
     log.info(f"reading {f_}")
     with open(str(f_), "r") as f:
@@ -93,4 +93,4 @@ def dump_json(j: Union[list, dict], f_: Union[Path, str]):
     log.info(f"writing {f_}")
     f_ = make_sure_parent_dir_exists(f_)
     with open(str(f_), "w") as f:
-        return json.dump(j, f, indent=4)
+        json.dump(j, f, indent=4)
