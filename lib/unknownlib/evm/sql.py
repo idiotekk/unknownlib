@@ -47,6 +47,10 @@ class SQLConnector:
         if parse_str_columns is True:
             self.parse_str_columns(df, inplace=True)
         return df
+    
+    def read_table(self, table_name: str, parse_str_columns=True) -> pd.DataFrame:
+        query = f"SELECT * from {table_name}"
+        return self.read(query, parse_str_columns=parse_str_columns)
 
     def delete_table(self, table_name: str):
         should_delete = input(f"delete table {table_name}? (Y/N)")

@@ -7,6 +7,7 @@ import argparse
 import time
 import json
 import pandas as pd
+from requests.adapters import HTTPAdapter
 from hexbytes import HexBytes
 from pprint import pprint
 from unknownlib.evm.fastw3 import FastW3, Chain, log
@@ -23,28 +24,19 @@ class NFTGuru(FastW3, ERC721ContractBook):
 
 w3 = NFTGuru()
 sql = SQLConnector()
+sess = requests.Session()
+sess.mount('https://', HTTPAdapter(pool_connections=1))
 
 
 def get_token_metadata(contract_name: str, token_id: int) -> dict:
 
     uri = w3.get_token_uri(contract_name, token_id)
     log.info(f"URI: {uri}")
-    r = requests.get(uri)
+    r = sess.get(uri)
     j = r.json()
     metadata = {k: json.dumps(j[k]) for k in j}
     metadata["tokenId"] = token_id
     return metadata
-
-
-def check_token_id_in_table(table_name: str, token_id: int) -> True:
-
-    # check database
-    df_tmp = sql.read(f"SELECT * FROM {table_name} WHERE tokenId == {token_id}")
-    assert len(df_tmp) <= 1, f"found more than 1 records with tokenId == {token_id}:\n{df_tmp}"
-    if len(df_tmp) > 0:
-        return True
-    else:
-        return False
 
 
 if __name__ == "__main__":
