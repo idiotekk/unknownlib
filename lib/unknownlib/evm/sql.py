@@ -42,8 +42,10 @@ class SQLConnector:
         log.info(f"written {len(df)} rows.")
         
     def read(self, query: str, parse_str_columns=True) -> pd.DataFrame:
+        log.info(f"querying dataframe from {query}")
         df = pd.read_sql_query(query, self.con)
-        self.parse_str_columns(df, inplace=True)
+        if parse_str_columns is True:
+            self.parse_str_columns(df, inplace=True)
         return df
 
     def delete_table(self, table_name: str):

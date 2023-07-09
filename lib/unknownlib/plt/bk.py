@@ -26,7 +26,7 @@ def plot(df: pd.DataFrame,
          figsize: Tuple[float]=(800, 500),
          title: Optional[str]=None,
          show: bool=True,
-         tools: str="pan,reset,wheel_zoom,box_zoom",
+         tools: str="pan,reset,wheel_zoom,box_zoom,save",
          ):
 
     if isinstance(y, list):
