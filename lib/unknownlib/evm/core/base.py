@@ -4,6 +4,7 @@ This module doesn't deal with any specific contract or address, e.g.
 TODO: need better name than "base.py".
 """
 import os
+import requests
 
 from typing import Optional, Dict, Any
 from functools import cache
@@ -11,7 +12,7 @@ from web3 import Web3
 from web3.eth.eth import Eth
 from web3.contract.contract import Contract
 
-from .enums import Chain, ERC20, ActionIfItemExists
+from .enums import Chain, ERC20, ERC721, ActionIfItemExists
 from .types import check_type
 from .. import log
 
@@ -20,6 +21,7 @@ __all__ = [
     "Web3Connector",
     "ContractBook",
     "ERC20ContractBook",
+    "ERC721ContractBook",
 ]
 
 
@@ -180,3 +182,22 @@ class ERC20ContractBook(ContractBook):
     @cache
     def get_decimals(self, token: ERC20) -> int:
         return self.contract(token).functions["decimals"]().call()
+
+
+class ERC721ContractBook(ContractBook):
+
+    _base_uri_map: dict = {}
+
+    def init_erc721(self, addr, key):
+        self.init_contract(addr=addr, key=key, abi=ERC721.abi)
+
+    @cache
+    def get_token_uri(self, contract_key: str, token_id: int) -> str:
+        if contract_key in self._base_uri_map:
+            base_uri = self._base_uri_map[contract_key]
+            return f"{base_uri}{token_id}"
+        else:
+            token_uri =  self.contract(contract_key).functions["tokenURI"](token_id).call()
+            base_uri = "/".join(token_uri.split("/")[:-1] + [""])
+            self._base_uri_map[contract_key] = base_uri
+            return token_uri
