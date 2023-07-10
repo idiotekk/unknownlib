@@ -31,7 +31,7 @@ sess.auth = (
     os.environ["INFURA_API_KEY_SECRET"])
 
 
-def get_token_metadata(contract_name: str, token_id: int, max_retries: int=10, retry_wait="5s") -> dict:
+def get_token_metadata(contract_name: str, token_id: int, max_retries: int=10, wait="0.1s", retry_wait="5s") -> dict:
 
     uri = w3.get_token_uri(contract_name, token_id)
     log.info(f"URI: {uri}")
@@ -51,6 +51,7 @@ def get_token_metadata(contract_name: str, token_id: int, max_retries: int=10, r
                 raise ValueError("can't handle response: " + json.dumps(metadata))
         else:
             metadata["tokenId"] = token_id
+            sleep(wait)
             return metadata
 
 
