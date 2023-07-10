@@ -31,7 +31,7 @@ sess.auth = (
     os.environ["INFURA_API_KEY_SECRET"])
 
 
-def get_token_metadata(contract_name: str, token_id: int, max_retries: int=5) -> dict:
+def get_token_metadata(contract_name: str, token_id: int, max_retries: int=10, retry_wait="5s") -> dict:
 
     uri = w3.get_token_uri(contract_name, token_id)
     log.info(f"URI: {uri}")
@@ -46,7 +46,7 @@ def get_token_metadata(contract_name: str, token_id: int, max_retries: int=5) ->
         metadata = {k: json.dumps(j[k]) for k in j}
         if "status" in metadata:
             if metadata["status"] == "429":
-                sleep("1s")
+                sleep(retry_wait)
             else:
                 raise ValueError("can't handle response: " + json.dumps(metadata))
         else:
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     if sql.table_exists(table_name):
         token_id_count = sql.read(f"SELECT tokenId FROM {table_name}")["tokenId"].value_counts()
         assert (token_id_count <= 1).all(), f"duplicate tokenId found: {token_id_count[token_id_count > 1]}"
-        existing_token_id = list(token_id_count.values)
+        existing_token_id = list(token_id_count.index)
     else:
         existing_token_id = []
 
@@ -99,11 +99,6 @@ if __name__ == "__main__":
         log.info(f"fetching metadata for {token_id}")
         def _fetch_single(token_id):
             metadata = get_token_metadata(contract_name, token_id)
-            row = pd.DataFrame(metadata, index=[token_id])
+            row = pd.DataFrame(metadata, index=["tokenId"])
             sql.write(row, table_name=table_name, index=["tokenId"])
-        try:
-            _fetch_single(token_id)
-        except Exception as e:
-            log.error(f"failed: {e}")
-            raise e
-            #failed_token_id_and_errors[token_id] = e
+        _fetch_single(token_id)
