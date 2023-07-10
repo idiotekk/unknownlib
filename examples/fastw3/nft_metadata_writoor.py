@@ -102,4 +102,12 @@ if __name__ == "__main__":
             metadata = get_token_metadata(contract_name, token_id)
             row = pd.DataFrame(metadata, index=["tokenId"])
             sql.write(row, table_name=table_name, index=["tokenId"])
-        _fetch_single(token_id)
+        try:
+            _fetch_single(token_id)
+        except Exception as e:
+            log.info(str(e))
+            if ("URI query for nonexistent token" in str(e)) or (
+                "we couldn't find the resource you're looking for" in str(e)):
+                continue
+            else:
+                raise Exception(f"unable to handle error\n{e}")
