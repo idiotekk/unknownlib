@@ -26,17 +26,32 @@ w3 = NFTGuru()
 sql = SQLConnector()
 sess = requests.Session()
 sess.mount('https://', HTTPAdapter(pool_connections=1))
+sess.auth = (
+    os.environ["INFURA_API_KEY"],
+    os.environ["INFURA_API_KEY_SECRET"])
 
 
-def get_token_metadata(contract_name: str, token_id: int) -> dict:
+def get_token_metadata(contract_name: str, token_id: int, max_retries: int=5) -> dict:
 
     uri = w3.get_token_uri(contract_name, token_id)
     log.info(f"URI: {uri}")
-    r = sess.get(uri)
-    j = r.json()
-    metadata = {k: json.dumps(j[k]) for k in j}
-    metadata["tokenId"] = token_id
-    return metadata
+    #r = sess.get(uri)
+    contract_addr = w3.contract(contract_name).address
+
+    retries = 0
+    while retries < max_retries:
+        retries += 1
+        r = sess.get(f"https://nft.api.infura.io/networks/{w3.chain.value}/nfts/{contract_addr}/tokens/{token_id}")
+        j = r.json()
+        metadata = {k: json.dumps(j[k]) for k in j}
+        if "status" in metadata:
+            if metadata["status"] == "429":
+                sleep("1s")
+            else:
+                raise ValueError("can't handle response: " + json.dumps(metadata))
+        else:
+            metadata["tokenId"] = token_id
+            return metadata
 
 
 if __name__ == "__main__":
@@ -44,6 +59,7 @@ if __name__ == "__main__":
     contract_book = {
         "MysteryBean": "0x3Af2A97414d1101E2107a70E7F33955da1346305",
         "AzukiElementals": "0xB6a37b5d14D502c3Ab0Ae6f3a0E058BC9517786e",
+        "MAYC": "0x60E4d786628Fea6478F785A6d7e704777c86a7c6",
     }
 
     parser = argparse.ArgumentParser()
@@ -71,9 +87,9 @@ if __name__ == "__main__":
     else:
         existing_token_id = []
 
-    max_supply = w3.contract(contract_name).functions["MAX_SUPPLY"]().call()
+    max_id = w3.contract(contract_name).functions["totalSupply"]().call()
     failed_token_id_and_errors = {}
-    for token_id in range(args.start_id, max_supply):
+    for token_id in range(args.start_id, max_id + 1): # +1 to include `max_id`
 
         if token_id in existing_token_id:
             log.info(f"tokenId {token_id} was already downloaded. Skipping.")
@@ -87,12 +103,7 @@ if __name__ == "__main__":
             sql.write(row, table_name=table_name, index=["tokenId"])
         try:
             _fetch_single(token_id)
-        except requests.exceptions.SSLError as e:
-            sleep("20s")
-            _fetch_single(token_id)
         except Exception as e:
             log.error(f"failed: {e}")
-            failed_token_id_and_errors[token_id] = e
-
-    if failed_token_id_and_errors:
-        pprint(failed_token_id_and_errors)
+            raise e
+            #failed_token_id_and_errors[token_id] = e
