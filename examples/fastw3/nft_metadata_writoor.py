@@ -73,7 +73,7 @@ if __name__ == "__main__":
     contract_name = args.name
     contract_addr = contract_book.get(args.name, None) or args.addr
     log.info(f"contract: {contract_name}, {contract_addr}")
-    db_path = '/tmp/evm.db'
+    db_path = os.path.expandvars('$HOME/data/evm.db')
 
     w3.init_web3(provider="infura", chain=chain)
     w3.init_scan(chain=chain)
