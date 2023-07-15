@@ -5,14 +5,13 @@ from bokeh.resources import INLINE
 from bokeh.plotting import figure, gridplot
 from bokeh.plotting import show as _show
 from pandas.api.types import is_string_dtype
+from bokeh.palettes import Set1
 
 output_notebook(INLINE)
 
 
 def _colors(n: int) -> List[str]:
-    default_colors = ["black", "red", "green", "blue", "cyan", "magenta"]
-    assert n <= len(default_colors)
-    return default_colors[:n]
+    return Set1[n]
 
 
 def plot(df: pd.DataFrame,
