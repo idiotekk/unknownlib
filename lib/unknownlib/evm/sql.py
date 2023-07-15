@@ -29,15 +29,16 @@ class SQLConnector:
         dtype = get_sql_dtype(df.iloc[0].to_dict())
         df = df.astype(str)
         
-        query = """CREATE TABLE IF NOT EXISTS {} ({});""".format(table_name, "\n,".join([k + " " + v for k, v in dtype.items()]))
-        self.con.execute(query)
-        query = f"""CREATE UNIQUE INDEX IF NOT EXISTS __index ON {table_name}({','.join(index)})"""
-        self.con.execute(query)
-        log.info(f"created table {table_name} at {self._path}; index = {index}")
+        if not self.table_exists(table_name):
+            query = """CREATE TABLE IF NOT EXISTS {} ({});""".format(table_name, "\n,".join([k + " " + v for k, v in dtype.items()]))
+            self.execute(query)
+            query = f"""CREATE UNIQUE INDEX IF NOT EXISTS __index ON {table_name}({','.join(index)})"""
+            self.execute(query)
+            log.info(f"created table {table_name} at {self._path}; index = {index}")
 
         query = "REPLACE INTO {} ({}) VALUES ({}) ".format(table_name, ', '.join(df.columns), ', '.join(["?"]*len(df.columns)))
         for i in range(len(df)):
-            self.con.execute(query, tuple(df.iloc[i]))
+            self.execute(query, tuple(df.iloc[i]))
         self.con.commit()
         log.info(f"written {len(df)} rows.")
         
@@ -52,13 +53,26 @@ class SQLConnector:
         query = f"SELECT * from {table_name}"
         return self.read(query, parse_str_columns=parse_str_columns)
 
-    def delete_table(self, table_name: str):
-        should_delete = input(f"delete table {table_name}? (Y/N)")
-        if should_delete == "Y":
-            self.con.execute(f"DROP TABLE {table_name}")
+    def delete_table(self, table_name: str) -> bool:
+        """ Return True if deleted is done.
+        """
+        input_table_name = input(f"type table name to delete {table_name}:")
+        if input_table_name == table_name:
+            self.execute(f"DROP TABLE {table_name}")
+            return True
+        else:
+            log.info(f"input table name {input_table_name} doesn't match with {table_name}; aborted")
+            return False
+
+    def execute(self, query: str, *a, **kw):
+        try:
+            return self.con.execute(query, *a, **kw)
+        except Exception as e:
+            log.error(f"{query} failed with error {e}")
+            raise e
     
     def table_exists(self, table_name: str) -> bool:
-        c = self.con.execute(f'''SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}' ''')
+        c = self.execute(f'''SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}' ''')
         return c.fetchone() is not None
 
     @staticmethod

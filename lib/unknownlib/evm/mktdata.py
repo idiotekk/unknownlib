@@ -31,16 +31,16 @@ class Coin(Enum):
 _MarketableToken = Union[Coin, ERC20]
 
 
-class LivePriceFeed(ABC):
+class PriceFeed(ABC):
 
     @abstractmethod
-    def get_latest_price(self, token: _MarketableToken):
+    def get_price(self, token: _MarketableToken, block_number: Optional[int]):
         pass
 
 
-class ChainLinkPriceFeed(ContractBook, LivePriceFeed):
+class ChainLinkPriceFeed(ContractBook, PriceFeed):
     """ Chainlink price feed.
-    Use get_latest_price method to get price.
+    Use get_price method to get price.
     """
 
     _price_feed_addr_book = {
@@ -76,7 +76,7 @@ class ChainLinkPriceFeed(ContractBook, LivePriceFeed):
     def _price_feed_label(self, token: _MarketableToken) -> str:
         return f"{self.__class__}:{token.name}"
             
-    def get_latest_price(self,
+    def get_price(self,
             token: _MarketableToken,
             *,
             block_number: Optional[int]=None) -> float:
