@@ -15,7 +15,7 @@ from unknownlib.evm.core import ERC721ContractBook
 from unknownlib.evm.timestamp import to_int
 from unknownlib.evm.sql import SQLConnector
 from unknownlib.dt import sleep
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
 
 class NFTGuru(FastW3, ERC721ContractBook):
@@ -31,28 +31,37 @@ sess.auth = (
     os.environ["INFURA_API_KEY_SECRET"])
 
 
-def get_token_metadata(contract_name: str, token_id: int, max_retries: int=10, wait="0.1s", retry_wait="5s") -> dict:
+def get_token_metadata(
+    contract_name: str,
+    token_id: int,
+    max_retries: int=5,
+    wait="0.2s",
+    retry_wait="5s") -> Optional[dict]:
 
-    uri = w3.get_token_uri(contract_name, token_id)
-    log.info(f"URI: {uri}")
-    #r = sess.get(uri)
     contract_addr = w3.contract(contract_name).address
 
     retries = 0
     while retries < max_retries:
         retries += 1
-        r = sess.get(f"https://nft.api.infura.io/networks/{w3.chain.value}/nfts/{contract_addr}/tokens/{token_id}")
+        uri = f"https://nft.api.infura.io/networks/{w3.chain.value}/nfts/{contract_addr}/tokens/{token_id}"
+        #uri = w3.get_token_uri(contract_name, token_id)
+        r = sess.get(uri)
+        log.info(f"URI: {uri}")
         j = r.json()
-        metadata = {k: json.dumps(j[k]) for k in j}
-        if "status" in metadata:
-            if metadata["status"] == "429":
+        if "message" in j:
+            if "couldn't find the resource you're looking for" in j["message"]:
+                return
+            elif "Rate limit exceeded" in j["message"]:
                 sleep(retry_wait)
-            else:
-                raise ValueError("can't handle response: " + json.dumps(metadata))
         else:
-            metadata["tokenId"] = token_id
-            sleep(wait)
-            return metadata
+            assert "metadata" in j.keys(), f"can't find metadata in {j}"
+            if j["metadata"] is None:
+                return
+            else:
+                metadata = {k: json.dumps(j["metadata"][k]) for k in j["metadata"]}
+                metadata["tokenId"] = token_id
+                sleep(wait)
+                return metadata
 
 
 if __name__ == "__main__":
@@ -66,6 +75,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--name")
     parser.add_argument("--addr")
+    parser.add_argument("--delete", action="store_true")
     parser.add_argument("--start-id", type=int, default=0)
     args = parser.parse_args()
 
@@ -81,6 +91,13 @@ if __name__ == "__main__":
     sql.connect(db_path)
 
     table_name=f"nft_metadata_{contract_name}"
+    if args.delete:
+        if input(f"type table name '{table_name} to delete:") == table_name:
+            sql.delete_table(table_name=table_name)
+        else:
+            log.info(f"got wrong table name; aborted")
+            exit(0)
+
     if sql.table_exists(table_name):
         token_id_count = sql.read(f"SELECT tokenId FROM {table_name}")["tokenId"].value_counts()
         assert (token_id_count <= 1).all(), f"duplicate tokenId found: {token_id_count[token_id_count > 1]}"
@@ -100,14 +117,8 @@ if __name__ == "__main__":
         log.info(f"fetching metadata for {token_id}")
         def _fetch_single(token_id):
             metadata = get_token_metadata(contract_name, token_id)
+            if not metadata:
+                return
             row = pd.DataFrame(metadata, index=["tokenId"])
             sql.write(row, table_name=table_name, index=["tokenId"])
-        try:
-            _fetch_single(token_id)
-        except Exception as e:
-            log.info(str(e))
-            if ("URI query for nonexistent token" in str(e)) or (
-                "we couldn't find the resource you're looking for" in str(e)):
-                continue
-            else:
-                raise Exception(f"unable to handle error\n{e}")
+        _fetch_single(token_id)

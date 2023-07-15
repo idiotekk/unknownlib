@@ -71,7 +71,7 @@ if __name__ == "__main__":
     contract_name = "milady"
     contract_addr = "0x12970E6868f88f6557B76120662c1B3E50A646bf"
     event_names = ["Transfer"]
-    db_path = '/tmp/evm.db'
+    db_path = os.path.expandvars('$HOME/data/evm.db')
     sdate = 20230601
     edate = 20230615
 
