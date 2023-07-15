@@ -40,7 +40,7 @@ class SQLConnector:
         for i in range(len(df)):
             self.execute(query, tuple(df.iloc[i]))
         self.con.commit()
-        log.info(f"written {len(df)} rows.")
+        log.info(f"{len(df)} rows are written to {self._path}:{table_name}.")
         
     def read(self, query: str, parse_str_columns=True) -> pd.DataFrame:
         log.info(f"querying dataframe from {query}")

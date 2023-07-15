@@ -72,10 +72,13 @@ blocks [{sblock}, {eblock}]; freq = {freq} blocks""")
         existing_block_numbers = []
     
     for block_number in range(sblock, eblock + 1, freq):
+        if block_number in existing_block_numbers:
+            log.info(f"block number {block_number} is found in the database; skipping ")
+            continue
         price_data = {
             "blockNumber": block_number,
             "price": w3.get_price(token, block_number=block_number),
-            "timestamp": w3.get_block_time(block_number=block_number),
+            "timestamp": w3.get_block_time(block_number=block_number, tz="UTC"),
         }
         log.info(price_data)
         row = pd.DataFrame(price_data, index=["blockNumber"])

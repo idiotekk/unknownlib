@@ -23,6 +23,7 @@ class Coin(Enum):
     DOGE = 4
     UNI = 5
     APE = 6
+    SPY = 7
 
     def __hash__(self):
         return self.value
@@ -48,6 +49,8 @@ class ChainLinkPriceFeed(ContractBook, PriceFeed):
             Coin.BTC: "0xf4030086522a5beea4988f8ca5b36dbc97bee88c",
             Coin.ETH: "0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419",
             Coin.APE: "0xd10abbc76679a20055e167bb80a24ac851b37056",
+            Coin.SPY: "0xb24D1DeE5F9a3f761D286B56d2bC44CE1D02DF7e", # not a coin but let's assume it is 
+            Coin.DOGE: "0x3AB0A0d137D4F946fBB19eecc6e92E64660231C8",
         },
         Chain.ARBITRUM: {
             ERC20.ARBITRUM_WBTC: "0xd0C7101eACbB49F3deCcCc166d238410D6D46d57",
