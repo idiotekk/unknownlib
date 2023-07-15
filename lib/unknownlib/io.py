@@ -43,11 +43,8 @@ def _repr_seq(s: Sequence, head: int=1, tail: int=1) -> str:
     if len(s) <= head + tail:
         r = _repr(s)
     else:
-        s_ = list(s[:head        query = """CREATE TABLE IF NOT EXISTS {} ({});""".format(table_name, "\n,".join([k + " " + v for k, v in dtype.items()]))
-        self.execute(query)
-        query = f"""CREATE UNIQUE INDEX IF NOT EXISTS __index ON {table_name}({','.join(index)})"""
-        self.execute(query)
- ", {len(s)} in total"
+        s_ = list(s[:head]) + ["..."] + list(s[(-tail):])
+        r = _repr(s_) + f", {len(s)} in total"
     return r
 
 
