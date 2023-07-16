@@ -3,11 +3,13 @@ import requests
 import time
 from typing import Any
 from .core.enums import Chain
+from .core.base import Web3Connector
 from . import log
 
 
 __all__ = [
-    "Etherscan"
+    "Etherscan",
+    "Etherscanner",
 ]
 
 
@@ -75,3 +77,16 @@ class Etherscan:
             apikey = self._api_key,
         )
         return int(self.get(**kw))
+
+
+class Etherscanner(Web3Connector):
+
+    _scan: Etherscan
+    _chain: Chain
+
+    def init_scan(self, chain: Chain):
+        self._scan = Etherscan(chain)
+    
+    @property
+    def scan(self) -> Etherscan:
+        return self._scan

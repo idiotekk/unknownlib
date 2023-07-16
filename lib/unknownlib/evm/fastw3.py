@@ -1,5 +1,5 @@
 import pandas as pd
-from .etherscan import Etherscan
+from .etherscan import Etherscanner
 
 # for type hints
 from web3.contract import Contract
@@ -21,17 +21,13 @@ __all__ = [
 ]
 
 
-class FastW3(ERC20ContractBook, ChainLinkPriceFeed):
+class FastW3(ERC20ContractBook, ChainLinkPriceFeed, Etherscanner):
     """ A class that combines web3, ens and account.
     """
 
-    _scan: Etherscan
     _ens: ENS
     _acct: Account
     
-    def init_scan(self, chain: Chain):
-        self._scan = Etherscan(chain)
-
     def init_acct(self,
                   *,
                   private_key: str):
@@ -53,10 +49,6 @@ class FastW3(ERC20ContractBook, ChainLinkPriceFeed):
     @property
     def ens(self) -> ENS:
         return self._ens
-
-    @property
-    def scan(self) -> Etherscan:
-        return self._scan
 
     def get_block_number(self,
                          *,

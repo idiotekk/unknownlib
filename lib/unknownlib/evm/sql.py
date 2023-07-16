@@ -1,9 +1,18 @@
+import os
 import sqlite3
+import json
 from . import log
 import pandas as pd
 import numpy as np
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Any
+from functools import wraps
 from pandas.api.types import is_string_dtype
+
+
+__all__ = [
+    "SQLConnector",
+    "SQLCache"
+]
 
 
 class SQLConnector:
@@ -12,7 +21,10 @@ class SQLConnector:
    
     def connect(self, path: str, **kw):
         self._path = path
-        self._con = sqlite3.connect(path, **kw)
+        try:
+            self._con = sqlite3.connect(path, **kw)
+        except Exception as e:
+            log.error(f"failed to open {path}, error: {e}")
 
     @property
     def con(self) -> sqlite3.Connection:
@@ -104,3 +116,50 @@ class SQLConnector:
                     pass
         if inplace is not True:
             return df
+
+
+class SQLCache:
+
+    _sql: SQLConnector = SQLConnector()
+    _db_path: str=os.path.expandvars("$UNKNOWN_SQL_CACHE_DIR/_SQLCache.db")
+    
+    @classmethod
+    def __get_table_name(cls, table_identifier):
+        return f"{cls.__name__}_{table_identifier}"
+    
+    @classmethod
+    def reset(cls, table_identifier):
+        cls._sql.delete_table(cls.__get_table_name(table_identifier))
+
+    @classmethod
+    def cache(cls, func):
+        """ Note: func must be a pure function.
+        """
+        @wraps(func)
+        def new_func(**kw: dict) -> Any:
+            table_identifier = f"{func.__module__}_{func.__name__}"
+            table_name = cls.__get_table_name(table_identifier)
+            cls._sql.connect(cls._db_path)
+            if not cls._sql.table_exists(table_name):
+                pass
+            else:
+                table = cls._sql.read(f"SELECT * from {table_name} WHERE " +
+                    " AND ".join([f"{k} = {v}" for k, v in kw.items()])
+                    , parse_str_columns=False)
+                if len(table) > 2:
+                    raise ValueError(f"found multiple records {table}")
+                elif len(table) == 1:
+                    __value = json.loads(table["__value"].iloc[0])
+                    return __value
+                else:
+                    pass
+            __value = func(**kw)
+            row = pd.DataFrame({**kw, "__value": json.dumps(__value)}, index=list(kw.keys()))
+            cls._sql.write(row, table_name=table_name, index=sorted(list[kw.keys()]))
+            cls._sql.con.close()
+            return __value
+        return new_func
+
+
+def sql_cache(func):
+    return SQLCache.cache(func)
