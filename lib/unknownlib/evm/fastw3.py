@@ -65,7 +65,7 @@ class FastW3(ERC20ContractBook, ChainLinkPriceFeed, Etherscanner):
     def get_block_time(self,
                        *,
                        block_number: int,
-                       tz: str="US/Eastern") -> pd.Timestamp:
+                       tz: str="UTC") -> pd.Timestamp:
         dt = pd.to_datetime(
             self.web3.eth.get_block(block_number).timestamp * 1e9,
             utc=True).tz_convert(tz)
