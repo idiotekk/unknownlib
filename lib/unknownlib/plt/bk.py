@@ -11,7 +11,8 @@ output_notebook(INLINE)
 
 
 def _colors(n: int) -> List[str]:
-    return Set1[n]
+    assert n <= 8, f"{n} > 8 is not supported"
+    return Set1[8][:n]
 
 
 def plot(df: pd.DataFrame,

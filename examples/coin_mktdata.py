@@ -27,7 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("--sdate", type=int)
     parser.add_argument("--edate", type=int)
     parser.add_argument("--date", type=int)
-    parser.add_argument("--freq", type=int, default=10, help="frequency of samples; unit=blocks")
+    parser.add_argument("--freq", type=int, default=50, help="frequency of samples; unit=blocks")
     
     args = parser.parse_args()
 
