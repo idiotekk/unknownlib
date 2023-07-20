@@ -156,11 +156,6 @@ class FastW3(ERC20ContractBook, ChainLinkPriceFeed, Etherscanner):
         }
         return self._sign_and_send(tx, max_retries=max_retries)
 
-    def get_abi(self, addr: str) -> list:
-        """ Get abi from contract address.
-        """
-        return self.scan.get(module="contract", action="getabi", address=addr)
-
     def get_event_logs(self,
                        *,
                        contract: str,

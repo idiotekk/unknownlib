@@ -90,3 +90,8 @@ class Etherscanner(Web3Connector):
     @property
     def scan(self) -> Etherscan:
         return self._scan
+
+    def get_abi(self, addr: str) -> list:
+        """ Get abi from contract address.
+        """
+        return self.scan.get(module="contract", action="getabi", address=addr)
