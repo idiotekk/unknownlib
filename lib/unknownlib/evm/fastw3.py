@@ -21,7 +21,7 @@ __all__ = [
 ]
 
 
-class FastW3(ERC20ContractBook, ChainLinkPriceFeed, Etherscanner):
+class FastW3(Etherscanner, ERC20ContractBook, ChainLinkPriceFeed):
     """ A class that combines web3, ens and account.
     """
 
