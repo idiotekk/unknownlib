@@ -15,6 +15,17 @@ def _colors(n: int) -> List[str]:
     return Set1[8][:n]
 
 
+_StrListLike = Union[str, List[str]]
+
+def parse_str_list(s: _StrListLike, sep=",") -> List[str]:
+    if isinstance(s, list):
+        return s
+    elif isinstance(s, str):
+        return s.split(sep)
+    else:
+        raise TypeError(type(s))
+
+
 def plot(df: pd.DataFrame,
          *,
          x: str,
@@ -22,7 +33,7 @@ def plot(df: pd.DataFrame,
          hue: Optional[str]=None,
          hlines: List[float]=[],
          vlines: List[float]=[],
-         line_types: str="line",
+         line_types: _StrListLike="line",
          figsize: Tuple[float]=(800, 500),
          title: Optional[str]=None,
          show: bool=True,
@@ -61,7 +72,7 @@ def plot(df: pd.DataFrame,
                height=h)
     p.toolbar.active_scroll = None
 
-    line_types = line_types.split(",")
+    line_types = parse_str_list(line_types, sep=",")
     for color, hue_ in zip(palette, unique_hues):
 
         legend_label = hue_
