@@ -200,10 +200,11 @@ class FastW3(Etherscanner, ERC20ContractBook, ChainLinkPriceFeed):
         if batch_size is None:
             return get_logs_as_df_single(stime, etime)
         else:
+            from ..algo import batch_run
             dfs = batch_run(
-                func=get_trade_logs,
+                func=get_logs_as_df_single,
                 start=stime,
                 end=etime,
-                batch_size=pd.Timedelta(batch_freq))
-            df = pd.concat(dfs)
+                batch_size=batch_size)
+            df = pd.concat(dfs).reset_index(drop=True)
             return df
