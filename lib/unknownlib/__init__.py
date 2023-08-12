@@ -7,3 +7,4 @@ log.basicConfig(
     
 from .io import *
 from .df import *
+from .algo import *
