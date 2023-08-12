@@ -8,7 +8,7 @@ from web3.datastructures import AttributeDict
 from web3.types import TxReceipt
 from eth_account import Account
 from ens import ENS
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Callable
 
 from .core import Chain, ERC20, ERC20ContractBook
 from .mktdata import ChainLinkPriceFeed
@@ -155,45 +155,55 @@ class FastW3(Etherscanner, ERC20ContractBook, ChainLinkPriceFeed):
             "gasPrice": self.eth.gas_price,
         }
         return self._sign_and_send(tx, max_retries=max_retries)
-
-    def get_event_logs(self,
-                       *,
-                       contract: str,
-                       event_name: str,
-                       from_block: int,
-                       to_block: int,
-                       topics: List[str]=[],
-                       ) -> List[AttributeDict]:
-        """ Get event logs of a contract for block within range [from_block, to_block].
-
-        Parameters
-        ----------
-        contract : str
-            Label of the contract.
-        topics : [str]
-            *Extra* topics for the filter, in addition to the first topic which
-            always identifies the event itself.
+    
+    def get_logs_as_df(self,
+        *,
+        stime: pd.Timestamp,
+        etime: pd.Timestamp,
+        batch_size: Optional[pd.Timedelta]=None,
+        contract_name: str, # contract key
+        event_name: str,
+        **kw,
+        ) -> pd.DataFrame:
         """
+        Args:
+            batch_size: if None, get all logs in one shot; other wise batch by this size
+            contract_name: name of contract. must be already cached
+            event_name: name of event.
+        """
+        c_ = self.contract(contract_name)
+        address = c_.address
+        func = c_.events[event_name]()
+        topics = func._get_event_filter_params(func.abi)["topics"]
+        log_processor = func.process_log
 
-        def get_event_topic(contract: Contract, event_name: str) -> str:
-            func = contract.events[event_name]()
-            topics = func._get_event_filter_params(func.abi)["topics"]
-            assert len(topics) == 1, f"expect 1 topic; got {topics}"
-            return topics[0]
-
-        c = self.contract(contract)
-        event_topic = get_event_topic(c, event_name)
-        topics = [event_topic] + topics
-
-        filter_params = {
-            "fromBlock": from_block,
-            "toBlock": to_block,
-            "address": c.address,
-            "topics": topics,
-        }
-        log.info(f"filtering logs {filter_params} for event {event_name}. (number of blocks: {to_block - from_block})")
-        raw_logs = self.eth.get_logs(filter_params)
-        log.info(f"number of logs = {len(raw_logs)}")
-
-        processed_log = [dict(c.events[event_name]().process_log(raw_log)) for raw_log in raw_logs]
-        return processed_log
+        def get_logs_as_df_single(stime: pd.Timestamp, etime: pd.Timestamp) -> pd.DataFrame:
+            from .utils import flatten_dict
+            from_block = self.scan.get_block_number_by_timestamp(to_int(stime, "s"))
+            to_block = self.scan.get_block_number_by_timestamp(to_int(etime, "s")) - 1
+            filter_params = {
+                **{
+                    "fromBlock": from_block,
+                    "toBlock": to_block,
+                    "address": address,
+                    "topics": topics
+                },
+                **kw,
+            }
+            log.info(f"filtering logs {filter_params} . (number of blocks: {to_block - from_block})")
+            raw_logs = self.eth.get_logs(filter_params)
+            log.info(f"number of logs: {len(raw_logs)}")
+            processed_logs = [flatten_dict(dict(log_processor(raw_log))) for raw_log in raw_logs]
+            df = pd.DataFrame(processed_logs)
+            return df
+        
+        if batch_size is None:
+            return get_logs_as_df_single(stime, etime)
+        else:
+            dfs = batch_run(
+                func=get_trade_logs,
+                start=stime,
+                end=etime,
+                batch_size=pd.Timedelta(batch_freq))
+            df = pd.concat(dfs)
+            return df
