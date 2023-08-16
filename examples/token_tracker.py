@@ -19,7 +19,7 @@ from unknownlib.apps.tokentracker import enrich_tfer_data
 
 class ERC20TokenTracker(FastW3):
 
-    def get_univswap_v2_pair(self, addr):
+    def get_univswap_v2_pair(self, addr) -> str:
         self.init_contract(addr="0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f", key="UniswapV2Factory")
         c = self.contract("UniswapV2Factory")
         pool_ca = c.functions["getPair"](
@@ -28,17 +28,38 @@ class ERC20TokenTracker(FastW3):
         ).call()
         return pool_ca
 
+    def get_token_creation_time(self, contract_name: str) -> pd.Timestamp:
+        creation_log = fw.get_logs_as_df(
+            stime=pd.to_datetime("20180101").tz_localize("UTC"),
+            etime=pd.Timestamp.utcnow(),
+            contract_name=contract_name,
+            event_name="OwnershipTransferred",
+            topics=["0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0", "0x0000000000000000000000000000000000000000000000000000000000000000"]
+        ).iloc[0].to_dict()
+        creation_block_number = int(creation_log["blockNumber"])
+        creation_time = fw.get_block_time(block_number=creation_block_number)
+        log.info(f"{contract_name} was created at {creation_block_number}, {creation_time}")
+        return creation_time
+
 fw = ERC20TokenTracker()
 
 
 def get_logs(sdate, edate, ticker):
 
     def _date_to_utc(date):
-        return pd.to_datetime(str(date)).tz_localize("US/Eastern").tz_convert("UTC")
+        return pd.to_datetime(str(date)).tz_localize("UTC")
 
     stime = _date_to_utc(sdate)
     etime = min(_date_to_utc(edate), pd.Timestamp.utcnow())
     batch_freq = "1d"
+
+    df_swap = fw.get_logs_as_df(
+        stime=stime,
+        etime=etime,
+        contract_name=f"{ticker}_pool",
+        event_name="Swap",
+        batch_size=pd.Timedelta(batch_freq),
+    )
 
     df_tfer = fw.get_logs_as_df(
         stime=stime,
@@ -48,14 +69,6 @@ def get_logs(sdate, edate, ticker):
         batch_size=pd.Timedelta(batch_freq),
     )
     df_tfer = interpolate_timestamp(df_tfer, fw)
-
-    df_swap = fw.get_logs_as_df(
-        stime=stime,
-        etime=etime,
-        contract_name=f"{ticker}_pool",
-        event_name="Swap",
-        batch_size=pd.Timedelta(batch_freq),
-    )
 
     def safe_div(x, y):
         return np.where(
@@ -71,14 +84,15 @@ def get_logs(sdate, edate, ticker):
     df_swap["volume0"] = df_swap["args_amount0In"] + df_swap["args_amount0Out"]
     df_swap["side"] = np.where(df_swap["args_amount1In"] > 0, 1, -1)
     # enrich swaps
-    df = df_swap[["transactionHash", "price", "side"]].copy()
+    df = df_swap[["transactionHash", "price", "side", "blockNumber", "logIndex"]].copy()
     df_swap_1 = df.copy()
+    trading_start_block = int(df_swap["blockNumber"].min())
 
     # enrich transfers
     value_col = "args_value" if "args_value" in df_tfer.columns else "args_amount"
     df_tfer["args_value"] = df_tfer[value_col]
-    df = df_tfer[["args_from", "args_to", value_col, "timestamp", "transactionHash"]].copy()
-    enrich_tfer_data(df=df, token_ca=token_ca, pool_ca=pool_ca)
+    df = df_tfer[["args_from", "args_to", value_col, "timestamp", "transactionHash", "blockNumber", "logIndex"]].copy()
+    enrich_tfer_data(df=df, token_ca=token_ca, pool_ca=pool_ca, trading_start_block=trading_start_block)
     df_tfer_1 = df.copy()
 
     return df_tfer_1, df_swap_1
@@ -91,12 +105,9 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("ticker", type=str)
     parser.add_argument("token_ca", type=str)
-    parser.add_argument("--sdate", type=int, required=True)
     parser.add_argument("--delete-table", action="store_true")
     args = parser.parse_args()
 
-    sdate = args.sdate
-    edate = 20230815
     chain = Chain.ETHEREUM
     fw.init_web3(provider="infura", chain=chain)
     fw.init_scan(chain=chain)
@@ -117,6 +128,8 @@ if __name__ == "__main__":
     fw.init_contract(addr=pool_ca, key=f"{ticker}_pool")
     fw.init_contract(addr=token_ca, key=f"{ticker}_token")
 
+    sdate = int(fw.get_token_creation_time(f"{ticker}_token").strftime("%Y%m%d"))
+    edate = int((pd.Timestamp.utcnow() + pd.Timedelta("24h")).strftime("%Y%m%d"))
     df_tfer, df_swap = get_logs(sdate, edate, ticker)
     sql.write(df_tfer, table_name=table_name+"_Transfer", index=["blockNumber", "logIndex"])
     sql.write(df_swap, table_name=table_name+"_Swap", index=["blockNumber", "logIndex"])

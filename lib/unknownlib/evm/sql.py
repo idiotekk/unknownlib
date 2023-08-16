@@ -40,12 +40,17 @@ class SQLConnector:
             return {k: "TEXT" for k, _ in log_.items()}
         dtype = get_sql_dtype(df.iloc[0].to_dict())
         df = df.astype(str)
+
+        if isinstance(index, str):
+            index = [index]
+        assert all([_ in df.columns for _ in index]), f"not all of {index} are found in {df.columns}"
         
         if not self.table_exists(table_name):
-            query = """CREATE TABLE IF NOT EXISTS {} ({});""".format(table_name, "\n,".join([k + " " + v for k, v in dtype.items()]))
-            self.execute(query)
-            query = f"""CREATE UNIQUE INDEX IF NOT EXISTS __index ON {table_name}({','.join(index)})"""
-            self.execute(query)
+            query = """CREATE TABLE IF NOT EXISTS {} ({}, PRIMARY KEY ({}));""".format(
+                table_name,
+                ",".join([k + " " + v for k, v in dtype.items()]),
+                ",".join(index))
+            self.execute(query, verbose=True)
             log.info(f"created table {table_name} at {self._path}; index = {index}")
 
         query = "REPLACE INTO {} ({}) VALUES ({}) ".format(table_name, ', '.join(df.columns), ', '.join(["?"]*len(df.columns)))
@@ -76,8 +81,10 @@ class SQLConnector:
             log.info(f"input table name {input_table_name} doesn't match with {table_name}; aborted")
             return False
 
-    def execute(self, query: str, *a, **kw):
+    def execute(self, query: str, *a, verbose=False, **kw):
         try:
+            if verbose:
+                log.info(f"executing query = {query}, args = {a}")
             return self.con.execute(query, *a, **kw)
         except Exception as e:
             log.error(f"{query} failed with error {e}")
