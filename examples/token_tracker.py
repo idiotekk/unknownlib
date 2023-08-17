@@ -1,6 +1,7 @@
 import time, os
 import asyncio
 from pprint import pprint
+import typing
 import json
 from web3 import Web3
 from ens import ENS
@@ -44,13 +45,22 @@ class ERC20TokenTracker(FastW3):
 fw = ERC20TokenTracker()
 
 
-def get_logs(sdate, edate, ticker):
+def get_logs(*,
+    sdate: typing.Optional[int]=None,
+    edate: typing.Optional[int]=None,
+    stime: typing.Optional[pd.Timestamp]=None,
+    etime: typing.Optional[pd.Timestamp]=None,
+    ticker):
 
     def _date_to_utc(date):
         return pd.to_datetime(str(date)).tz_localize("UTC")
 
-    stime = _date_to_utc(sdate)
-    etime = min(_date_to_utc(edate), pd.Timestamp.utcnow())
+    if sdate:
+        assert stime is None
+        stime = _date_to_utc(sdate)
+    if edate:
+        assert etime is None
+        etime = min(_date_to_utc(edate), pd.Timestamp.utcnow())
     batch_freq = "1d"
 
     df_swap = fw.get_logs_as_df(
@@ -86,13 +96,11 @@ def get_logs(sdate, edate, ticker):
     # enrich swaps
     df = df_swap[["transactionHash", "price", "side", "blockNumber", "logIndex"]].copy()
     df_swap_1 = df.copy()
-    trading_start_block = int(df_swap["blockNumber"].min())
 
     # enrich transfers
     value_col = "args_value" if "args_value" in df_tfer.columns else "args_amount"
     df_tfer["args_value"] = df_tfer[value_col]
     df = df_tfer[["args_from", "args_to", value_col, "timestamp", "transactionHash", "blockNumber", "logIndex"]].copy()
-    enrich_tfer_data(df=df, token_ca=token_ca, pool_ca=pool_ca, trading_start_block=trading_start_block)
     df_tfer_1 = df.copy()
 
     return df_tfer_1, df_swap_1
@@ -118,18 +126,39 @@ if __name__ == "__main__":
     ticker = args.ticker
     token_ca = args.token_ca
 
-    table_name=f"ERC20_{ticker}"
-    if args.delete_table:
-        sql.delete_table(table_name+"_Transfer")
-        sql.delete_table(table_name+"_Swap")
-
     token_ca = Addr(token_ca).value
     pool_ca = fw.get_univswap_v2_pair(token_ca)
     fw.init_contract(addr=pool_ca, key=f"{ticker}_pool")
     fw.init_contract(addr=token_ca, key=f"{ticker}_token")
 
-    sdate = int(fw.get_token_creation_time(f"{ticker}_token").strftime("%Y%m%d"))
-    edate = int((pd.Timestamp.utcnow() + pd.Timedelta("24h")).strftime("%Y%m%d"))
-    df_tfer, df_swap = get_logs(sdate, edate, ticker)
+    table_name=f"ERC20_{ticker}"
+    if args.delete_table:
+        sql.delete_table(table_name+"_Transfer")
+        sql.delete_table(table_name+"_Swap")
+
+    if sql.table_exists(table_name+"_Transfer") and sql.table_exists(table_name+"_Swap"):
+        df_tfer_hist = sql.read_table(table_name+"_Transfer")
+        df_swap_hist = sql.read_table(table_name+"_Swap")
+        last_block = min(
+            int(df_tfer_hist["blockNumber"].max()),
+            int(df_swap_hist["blockNumber"].max()))
+        stime = fw.get_block_time(block_number=last_block)
+        log.info(f"last observed block time = {stime}")
+    else:
+        df_tfer_hist = None
+        df_swap_hist = None
+        stime = fw.get_token_creation_time(f"{ticker}_token")
+
+
+    etime = pd.Timestamp.utcnow()
+    df_tfer, df_swap = get_logs(stime=stime, etime=etime, ticker=ticker)
+
+    if df_tfer_hist is not None:
+        df_tfer = pd.concat([df_tfer_hist, df_tfer])
+    if df_swap_hist is not None:
+        df_swap = pd.concat([df_swap_hist, df_swap])
+
+    trading_start_block = int(df_swap["blockNumber"].min())
+    enrich_tfer_data(df=df_tfer, token_ca=token_ca, pool_ca=pool_ca, trading_start_block=trading_start_block)
     sql.write(df_tfer, table_name=table_name+"_Transfer", index=["blockNumber", "logIndex"])
     sql.write(df_swap, table_name=table_name+"_Swap", index=["blockNumber", "logIndex"])

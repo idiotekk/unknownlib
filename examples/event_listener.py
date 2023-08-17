@@ -4,10 +4,8 @@ import pandas as pd
 import numpy as np
 from web3 import Web3
 from pprint import pprint
-from unknownlib.evm.fastw3 import FastW3
 from unknownlib.evm.sql import SQLConnector
 from unknownlib.evm import flatten_dict, Chain, Addr, interpolate_timestamp, log, ContractBook, Etherscanner
-from unknownlib.algo import batch_run
 from unknownlib.dt import sleep
 
 
@@ -48,6 +46,7 @@ if __name__ == "__main__":
                 for r in rows:
                     pprint(r)
                 df = pd.DataFrame(rows)
+                interpolate_timestamp(df)
                 sql.write(df, table_name=table_name, index=["blockNumber", "logIndex"])
             sleep(retry_wait)
 

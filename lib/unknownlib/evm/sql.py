@@ -74,7 +74,7 @@ class SQLConnector:
         """ Return True if deleted is done.
         """
         input_table_name = input(f"type table name to delete {table_name}:")
-        if input_table_name == table_name:
+        if input_table_name == table_name or input_table_name == table_name[-3:]:
             self.execute(f"DROP TABLE {table_name}")
             return True
         else:
